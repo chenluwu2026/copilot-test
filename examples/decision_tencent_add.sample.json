@@ -1,0 +1,50 @@
+{
+  "security": {
+    "symbol": "00700.HK",
+    "name": "腾讯控股"
+  },
+  "action": "add",
+  "research_rating": "buy",
+  "current_weight_pct": 5,
+  "target_weight_pct": 7,
+  "delta_weight_pct": 2,
+  "decision_reason": "估值处于历史偏低区间，业绩修复趋势确立，回购力度增强；需配合游戏与广告核心变量验证。",
+  "assumptions": [
+    {
+      "text": "未来两个季度国内游戏流水同比企稳回升",
+      "measurable": true,
+      "metric_key": "domestic_game_revenue_yoy",
+      "deadline": "2026-09-30"
+    },
+    {
+      "text": "广告收入增速不低于行业平均",
+      "measurable": true,
+      "metric_key": "ads_revenue_yoy"
+    }
+  ],
+  "main_risks": [
+    "游戏流水不及预期",
+    "监管与平台政策扰动",
+    "AI 投入侵蚀短期利润率"
+  ],
+  "review_conditions": [
+    "若下一季报游戏流水同比下滑超 10%，下调至 watch",
+    "回购规模较指引明显缩窄且无说明",
+    "监管出台新的限制性条款影响核心业务"
+  ],
+  "holding_period": "3-6个月",
+  "confidence_grade": "B+",
+  "decision_by": "cio_agent",
+  "references": [
+    {
+      "ref_type": "filing",
+      "ref_id": "00000000-0000-0000-0000-000000000001",
+      "excerpt": "季报：收入同比+8%，回购计划延续"
+    },
+    {
+      "ref_type": "valuation",
+      "ref_id": "00000000-0000-0000-0000-000000000002",
+      "excerpt": "PE 处于近五年 25% 分位"
+    }
+  ]
+}

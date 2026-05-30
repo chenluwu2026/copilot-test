@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aims.local/schemas/research_view.schema.json",
+  "title": "ResearchView",
+  "type": "object",
+  "required": ["security", "rating", "fundamental_analysis", "investment_conclusion"],
+  "properties": {
+    "security": {
+      "type": "object",
+      "required": ["symbol", "name"],
+      "properties": {
+        "security_id": { "type": "string", "format": "uuid" },
+        "symbol": { "type": "string" },
+        "name": { "type": "string" }
+      }
+    },
+    "rating": {
+      "type": "string",
+      "enum": ["strong_buy", "buy", "hold", "reduce", "sell", "neutral"]
+    },
+    "horizon": { "type": "string" },
+    "fundamental_analysis": {
+      "type": "object",
+      "required": [
+        "business_model",
+        "industry_space",
+        "competitive_landscape",
+        "financial_quality",
+        "management",
+        "growth_drivers",
+        "key_risks",
+        "current_valuation",
+        "core_variables_6_12m"
+      ],
+      "properties": {
+        "business_model": { "type": "string" },
+        "industry_space": { "type": "string" },
+        "competitive_landscape": { "type": "string" },
+        "financial_quality": { "type": "string" },
+        "management": { "type": "string" },
+        "growth_drivers": { "type": "string" },
+        "key_risks": { "type": "string" },
+        "current_valuation": { "type": "string" },
+        "core_variables_6_12m": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "investment_conclusion": { "type": "string" },
+    "scenario_analysis": {
+      "$ref": "valuation_scenario.schema.json"
+    }
+  },
+  "additionalProperties": false
+}

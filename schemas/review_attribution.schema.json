@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aims.local/schemas/review_attribution.schema.json",
+  "title": "ReviewAttribution",
+  "type": "object",
+  "required": ["decision_id", "outcome_summary", "assumption_results"],
+  "properties": {
+    "decision_id": { "type": "string", "format": "uuid" },
+    "return_since_decision_pct": { "type": "number" },
+    "max_drawdown_pct": { "type": "number" },
+    "outcome_summary": { "type": "string" },
+    "what_went_right": { "type": "array", "items": { "type": "string" } },
+    "what_went_wrong": { "type": "array", "items": { "type": "string" } },
+    "assumption_results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["assumption_text", "result"],
+        "properties": {
+          "assumption_text": { "type": "string" },
+          "result": { "type": "string", "enum": ["validated", "invalidated", "open"] },
+          "evidence": { "type": "string" }
+        }
+      }
+    },
+    "proposed_lessons": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "memory_type": {
+            "type": "string",
+            "enum": ["lesson", "rule", "anti_pattern"]
+          },
+          "title": { "type": "string" },
+          "content": { "type": "string" }
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

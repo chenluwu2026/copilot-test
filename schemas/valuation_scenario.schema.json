@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aims.local/schemas/valuation_scenario.schema.json",
+  "title": "ValuationScenario",
+  "type": "object",
+  "required": ["methods", "scenarios"],
+  "properties": {
+    "methods": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "DCF",
+          "PE",
+          "PB",
+          "PS",
+          "EV_EBITDA",
+          "SOTP",
+          "historical_percentile",
+          "peer_comparison"
+        ]
+      }
+    },
+    "scenarios": {
+      "type": "array",
+      "minItems": 3,
+      "items": {
+        "type": "object",
+        "required": ["name", "target_price_low", "target_price_high", "triggers"],
+        "properties": {
+          "name": { "type": "string", "enum": ["optimistic", "base", "pessimistic"] },
+          "probability_weight": { "type": "number", "minimum": 0, "maximum": 1 },
+          "target_price_low": { "type": "number" },
+          "target_price_high": { "type": "number" },
+          "triggers": { "type": "array", "items": { "type": "string" } },
+          "downside_risk_note": { "type": "string" }
+        }
+      }
+    },
+    "current_price": { "type": "number" },
+    "currency": { "type": "string" }
+  },
+  "additionalProperties": false
+}

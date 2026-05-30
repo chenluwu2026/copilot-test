@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aims.local/schemas/structured_event.schema.json",
+  "title": "StructuredEvent",
+  "type": "object",
+  "required": [
+    "event_type",
+    "impact_direction",
+    "confidence",
+    "time_sensitivity",
+    "companies"
+  ],
+  "properties": {
+    "companies": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["symbol", "name"],
+        "properties": {
+          "security_id": { "type": "string", "format": "uuid" },
+          "symbol": { "type": "string" },
+          "name": { "type": "string" }
+        }
+      }
+    },
+    "event_type": {
+      "type": "string",
+      "description": "如 earnings_release, buyback, regulation"
+    },
+    "impact_direction": {
+      "type": "string",
+      "enum": ["positive", "negative", "neutral", "mixed"]
+    },
+    "impact_dimensions": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "confidence": { "type": "string", "enum": ["low", "medium", "high"] },
+    "time_sensitivity": { "type": "string", "enum": ["low", "medium", "high"] },
+    "related_securities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "symbol": { "type": "string" },
+          "security_id": { "type": "string", "format": "uuid" }
+        }
+      }
+    },
+    "follow_ups": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "需要持续跟踪的变量"
+    },
+    "summary": { "type": "string", "maxLength": 2000 }
+  },
+  "additionalProperties": false
+}
