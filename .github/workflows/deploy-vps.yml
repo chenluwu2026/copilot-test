@@ -1,0 +1,48 @@
+# push 到 main 后 SSH 到 VPS 执行 scripts/deploy.sh
+# 前置：在 GitHub 仓库 Settings → Secrets 配置 VPS_*（见 docs/DEPLOY.md）
+
+name: Deploy VPS
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/**"
+      - "schemas/**"
+      - "docker-compose.prod.yml"
+      - "docker-compose.yml"
+      - "Dockerfile.api"
+      - "Dockerfile.web"
+      - "Caddyfile"
+      - "scripts/deploy.sh"
+      - "scripts/bootstrap-vps.sh"
+      - ".github/workflows/deploy-vps.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: aims-vps-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # 未配置 Secrets 时不要误跑（手动触发除外）
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' && vars.VPS_DEPLOY_ENABLED == 'true')
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          command_timeout: 30m
+          script: |
+            set -euo pipefail
+            export AIMS_ROOT="${{ secrets.VPS_DEPLOY_PATH }}"
+            export AIMS_BRANCH="${{ vars.VPS_DEPLOY_BRANCH || 'main' }}"
+            export AIMS_PORT="${{ vars.VPS_PORT || '8080' }}"
+            cd "${AIMS_ROOT}"
+            bash scripts/deploy.sh

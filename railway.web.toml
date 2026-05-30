@@ -1,0 +1,13 @@
+# AIMS Web 服务 — Railway Config-as-Code
+# Dashboard → Web 服务 → Settings → Config file: /railway.web.toml
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile.web"
+watchPatterns = ["apps/web/**", "Dockerfile.web", "railway.web.toml"]
+
+[deploy]
+healthcheckPath = "/"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+numReplicas = 1

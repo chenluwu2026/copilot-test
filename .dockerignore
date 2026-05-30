@@ -1,0 +1,11 @@
+node_modules
+.next
+.git
+data
+*.db
+.env
+preview
+site
+docs/*.md
+**/__pycache__
+.venv

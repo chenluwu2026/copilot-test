@@ -1,0 +1,10 @@
+# 粘贴到 Railway → aims-web 服务 → Variables
+# 注意：NEXT_PUBLIC_* 在 Docker 构建时注入，改后需 Redeploy
+
+NEXT_PUBLIC_API_URL=https://${{aims-api.RAILWAY_PUBLIC_DOMAIN}}
+# SSR 走内网（推荐，省流量）：取消下行注释并确保 API 服务名一致
+# API_URL=http://${{aims-api.RAILWAY_PRIVATE_DOMAIN}}:${{aims-api.PORT}}
+API_URL=https://${{aims-api.RAILWAY_PUBLIC_DOMAIN}}
+
+# 若 API 设置了 API_KEY，这里填相同值：
+# NEXT_PUBLIC_API_KEY=${{aims-api.API_KEY}}

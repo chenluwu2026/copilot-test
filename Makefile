@@ -1,7 +1,17 @@
-.PHONY: up down api web seed
+.PHONY: up down api web seed prod prod-logs prod-down
 
 up:
 	docker compose up -d db
+
+# 一键线上（Postgres + API + Web + Caddy → :8080）
+prod:
+	docker compose -f docker-compose.prod.yml up -d --build
+
+prod-logs:
+	docker compose -f docker-compose.prod.yml logs -f
+
+prod-down:
+	docker compose -f docker-compose.prod.yml down
 
 down:
 	docker compose down

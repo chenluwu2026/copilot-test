@@ -1,0 +1,13 @@
+# AIMS API 服务 — Railway Config-as-Code
+# Dashboard → API 服务 → Settings → Config file: /railway.api.toml
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile.api"
+watchPatterns = ["apps/api/**", "schemas/**", "Dockerfile.api", "railway.api.toml"]
+
+[deploy]
+healthcheckPath = "/health"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+numReplicas = 1
