@@ -2,10 +2,10 @@ name: Deploy mobile preview to GitHub Pages
 
 on:
   push:
-    branches: [main, cursor/aims-phase1-mvp-a5cb]
+    branches: [main]
     paths:
-      - "docs/**"
       - "preview/**"
+      - "site/**"
       - ".github/workflows/deploy-preview-pages.yml"
   workflow_dispatch:
 
@@ -26,13 +26,24 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - name: Prepare docs
+
+      - name: Build static site
         run: |
-          mkdir -p docs
-          cp preview/aims-preview.html docs/index.html
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+          mkdir -p site
+          cp preview/aims-preview.html site/index.html
+          touch site/.nojekyll
+          echo "AIMS preview" > site/.gitkeep
+
+      - name: Enable GitHub Pages
+        uses: actions/configure-pages@v5
         with:
-          path: docs
-      - id: deployment
+          enablement: true
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
         uses: actions/deploy-pages@v4
