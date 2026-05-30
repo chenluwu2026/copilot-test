@@ -33,66 +33,28 @@
     .page.active { display: block; }
     .nav-link.active { background: #3b82f6; color: #fff; }
     .chart-bar { transition: height 0.3s; }
-    @media (max-width: 640px) {
-      .desktop-nav { display: none !important; }
-      .mobile-bottom-nav { display: flex !important; }
-      main { padding-bottom: 5.5rem !important; }
-    }
-    @media (min-width: 641px) {
-      .mobile-bottom-nav { display: none !important; }
-    }
-    .mobile-bottom-nav {
-      display: none;
-      position: fixed;
-      bottom: 0; left: 0; right: 0;
-      z-index: 60;
-      padding-bottom: env(safe-area-inset-bottom, 0);
-      border-top: 1px solid #2d3a4f;
-      background: rgba(26, 35, 50, 0.98);
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-    }
-    .mobile-bottom-nav button {
-      flex: 1;
-      min-width: 3.5rem;
-      padding: 0.5rem 0.25rem;
-      font-size: 0.65rem;
-      color: #94a3b8;
-      text-align: center;
-    }
-    .mobile-bottom-nav button.active { color: #3b82f6; font-weight: 600; }
   </style>
 </head>
 <body class="min-h-screen antialiased">
+  <!-- 顶栏 -->
   <header class="sticky top-0 z-50 border-b border-aims-border bg-aims-card/95 backdrop-blur">
-    <div class="mx-auto flex max-w-6xl items-center gap-2 px-4 py-3">
-      <span class="text-lg font-bold text-aims-accent">AIMS</span>
-      <span class="hidden text-xs text-slate-500 sm:inline">手机可浏览 · 静态预览</span>
-      <nav class="desktop-nav ml-auto hidden flex-wrap gap-1 text-sm sm:flex" id="main-nav">
+    <div class="mx-auto flex max-w-6xl flex-wrap items-center gap-2 px-4 py-3">
+      <span class="mr-2 text-lg font-bold text-aims-accent">AIMS</span>
+      <span class="hidden text-xs text-slate-500 sm:inline">AI 投资组合模拟决策系统 · 界面静态预览</span>
+      <nav class="ml-auto flex flex-wrap gap-1 text-sm" id="main-nav">
         <button data-page="dashboard" class="nav-link active rounded px-3 py-1">总览</button>
-        <button data-page="portfolio" class="nav-link rounded px-3 py-1 text-slate-300">组合</button>
-        <button data-page="watchlist" class="nav-link rounded px-3 py-1 text-slate-300">股票池</button>
-        <button data-page="decisions" class="nav-link rounded px-3 py-1 text-slate-300">决策</button>
-        <button data-page="research" class="nav-link rounded px-3 py-1 text-slate-300">研究</button>
-        <button data-page="events" class="nav-link rounded px-3 py-1 text-slate-300">信息</button>
-        <button data-page="data" class="nav-link rounded px-3 py-1 text-slate-300">数据</button>
-        <button data-page="review" class="nav-link rounded px-3 py-1 text-slate-300">复盘</button>
+        <button data-page="portfolio" class="nav-link rounded px-3 py-1 text-slate-300 hover:bg-aims-border">组合</button>
+        <button data-page="watchlist" class="nav-link rounded px-3 py-1 text-slate-300 hover:bg-aims-border">股票池</button>
+        <button data-page="decisions" class="nav-link rounded px-3 py-1 text-slate-300 hover:bg-aims-border">决策日志</button>
+        <button data-page="research" class="nav-link rounded px-3 py-1 text-slate-300 hover:bg-aims-border">研究</button>
+        <button data-page="events" class="nav-link rounded px-3 py-1 text-slate-300 hover:bg-aims-border">信息流</button>
+        <button data-page="data" class="nav-link rounded px-3 py-1 text-slate-300 hover:bg-aims-border">数据</button>
+        <button data-page="review" class="nav-link rounded px-3 py-1 text-slate-300 hover:bg-aims-border">复盘</button>
       </nav>
     </div>
   </header>
 
-  <nav class="mobile-bottom-nav" id="mobile-nav" aria-label="手机导航">
-    <button data-page="dashboard" class="active">总览</button>
-    <button data-page="portfolio">组合</button>
-    <button data-page="decisions">决策</button>
-    <button data-page="research">研究</button>
-    <button data-page="events">信息</button>
-    <button data-page="data">数据</button>
-    <button data-page="review">复盘</button>
-    <button data-page="watchlist">池</button>
-  </nav>
-
-  <main class="mx-auto max-w-6xl p-4 pb-8">
+  <main class="mx-auto max-w-6xl p-4 pb-16">
     <!-- Dashboard -->
     <section id="page-dashboard" class="page active space-y-4">
       <h1 class="text-2xl font-bold">Dashboard</h1>
@@ -380,22 +342,25 @@
     </section>
   </main>
 
+  <footer class="fixed bottom-0 left-0 right-0 border-t border-aims-border bg-aims-card/90 py-2 text-center text-xs text-slate-500">
+    静态预览 · 实际产品请运行 <code class="text-aims-accent">npm run dev</code> (前端) + <code class="text-aims-accent">uvicorn</code> (API) ·
+    <a href="https://github.com/chenluwu2026/copilot-test" class="text-aims-accent underline">GitHub</a>
+  </footer>
+
   <script>
-    function goPage(page, btn) {
-      document.querySelectorAll(".page").forEach((p) => p.classList.remove("active"));
-      const el = document.getElementById("page-" + page);
-      if (el) el.classList.add("active");
-      document.querySelectorAll(".nav-link, #mobile-nav button").forEach((b) => {
-        b.classList.remove("active");
-        if (!b.classList.contains("nav-link")) b.classList.remove("text-white");
-        if (b.classList.contains("nav-link")) b.classList.add("text-slate-300");
+    const nav = document.getElementById("main-nav");
+    const links = nav.querySelectorAll(".nav-link");
+    links.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const page = btn.dataset.page;
+        document.querySelectorAll(".page").forEach((p) => p.classList.remove("active"));
+        document.getElementById("page-" + page).classList.add("active");
+        links.forEach((l) => l.classList.remove("active", "text-white"));
+        links.forEach((l) => l.classList.add("text-slate-300"));
+        btn.classList.add("active");
+        btn.classList.remove("text-slate-300");
+        window.scrollTo({ top: 0, behavior: "smooth" });
       });
-      btn.classList.add("active");
-      if (btn.classList.contains("nav-link")) btn.classList.remove("text-slate-300");
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
-    document.querySelectorAll("#main-nav .nav-link, #mobile-nav button").forEach((btn) => {
-      btn.addEventListener("click", () => goPage(btn.dataset.page, btn));
     });
   </script>
 </body>
