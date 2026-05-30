@@ -34,6 +34,7 @@ jobs:
           DATABASE_URL: postgresql://aims:aims@localhost:5432/aims
           SCHEMAS_DIR: ${{ github.workspace }}/schemas
           AGENT_MODE: rule
+          RUN_SEED: "true"
         working-directory: apps/api
         run: |
           python -c "from app.main import app; print('app ok')"
