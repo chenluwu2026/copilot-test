@@ -23,10 +23,11 @@ services:
       dockerfile: Dockerfile.api
     environment:
       DATABASE_URL: postgresql://aims:aims@db:5432/aims
-      CORS_ORIGINS: http://localhost:8080,http://127.0.0.1:8080
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080,http://127.0.0.1:8080}
       SCHEMAS_DIR: /schemas
-      RUN_SEED: "true"
-      DATA_PROVIDER: akshare
+      RUN_SEED: ${RUN_SEED:-true}
+      DATA_PROVIDER: ${DATA_PROVIDER:-akshare}
+      API_KEY: ${API_KEY:-}
       # API_KEY: "your-secret"  # 启用后前端需设 NEXT_PUBLIC_API_KEY（见 DEPLOY.md）
     depends_on:
       db:

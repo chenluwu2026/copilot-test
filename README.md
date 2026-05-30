@@ -47,7 +47,9 @@ docker compose -f docker-compose.prod.yml up -d --build
 # 或: make prod
 ```
 
-浏览器打开 **http://localhost:8080**（服务器则换成公网 IP）。详细说明见 [`docs/DEPLOY.md`](./docs/DEPLOY.md)（含 Railway 免运维方案）。
+浏览器打开 **http://localhost:8080**（服务器则换成公网 IP）。
+
+**云服务器**：首次 `scripts/bootstrap-vps.sh`，配置 GitHub Secrets 后 **push main 自动部署**。详见 [`docs/DEPLOY.md`](./docs/DEPLOY.md)。
 
 ## 本地运行（Phase 1 MVP）
 
