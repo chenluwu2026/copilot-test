@@ -1,0 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-aims-bg text-gray-100 antialiased;
+}
+
+.prose-aims h1 {
+  @apply mb-2 text-xl font-bold;
+}
+.prose-aims ul {
+  @apply list-disc pl-5 text-sm text-gray-300;
+}

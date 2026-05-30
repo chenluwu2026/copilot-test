@@ -1,0 +1,88 @@
+import { DecisionActions } from "@/components/DecisionActions";
+import { Card } from "@/components/Card";
+import { api } from "@/lib/api";
+
+export const dynamic = "force-dynamic";
+
+export default async function DecisionDetailPage({
+  params,
+}: {
+  params: { id: string };
+}) {
+  const d = await api.decision(params.id);
+  const portfolios = await api.portfolios();
+
+  return (
+    <div className="space-y-4">
+      <h1 className="text-2xl font-bold">
+        {d.name}{" "}
+        <span className="text-aims-trade text-lg">({d.action})</span>
+      </h1>
+      <div className="flex flex-wrap gap-2 text-sm">
+        <span className="rounded bg-aims-border px-2 py-1">状态: {d.status}</span>
+        <span className="rounded bg-aims-border px-2 py-1">
+          仓位: {d.current_weight_pct}% → {d.target_weight_pct}%
+        </span>
+        {d.confidence_grade && (
+          <span className="rounded bg-aims-border px-2 py-1">信心: {d.confidence_grade}</span>
+        )}
+        {d.holding_period && (
+          <span className="rounded bg-aims-border px-2 py-1">周期: {d.holding_period}</span>
+        )}
+      </div>
+
+      <Card title="决策理由">
+        <p className="text-sm leading-relaxed">{d.decision_reason}</p>
+      </Card>
+
+      <Card title="核心假设">
+        <ul className="list-disc space-y-1 pl-5 text-sm">
+          {d.assumptions.map((a, i) => (
+            <li key={i}>
+              {a.text}
+              {a.measurable && (
+                <span className="ml-2 text-xs text-aims-research">可验证</span>
+              )}
+            </li>
+          ))}
+        </ul>
+      </Card>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card title="主要风险">
+          <ul className="list-disc pl-5 text-sm text-aims-negative">
+            {d.main_risks.map((r, i) => (
+              <li key={i}>{r}</li>
+            ))}
+          </ul>
+        </Card>
+        <Card title="复盘 / 止损条件（假设驱动）">
+          <ul className="list-disc pl-5 text-sm">
+            {d.review_conditions.map((r, i) => (
+              <li key={i}>{r}</li>
+            ))}
+          </ul>
+        </Card>
+      </div>
+
+      {d.references.length > 0 && (
+        <Card title="参考信息">
+          <ul className="space-y-2 text-sm">
+            {d.references.map((r, i) => (
+              <li key={i} className="border-l-2 border-aims-accent pl-3">
+                <span className="text-gray-400">[{r.ref_type}]</span> {r.excerpt}
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+
+      <DecisionActions
+        decisionId={d.id}
+        status={d.status}
+        action={d.action}
+        portfolioId={portfolios[0]?.id || ""}
+      />
+    </div>
+  );
+}

@@ -1,0 +1,17 @@
+.PHONY: up down api web seed
+
+up:
+	docker compose up -d db
+
+down:
+	docker compose down
+
+api:
+	cd apps/api && pip3 install -q -r requirements.txt && \
+		python3 -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+web:
+	cd apps/web && npm install && npm run dev
+
+seed:
+	cd apps/api && DATABASE_URL=postgresql://aims:aims@localhost:5432/aims SCHEMAS_DIR=$(CURDIR)/schemas python -c "from scripts.seed import run_seed; run_seed()"
