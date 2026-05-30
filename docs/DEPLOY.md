@@ -186,6 +186,19 @@ A: `docker compose exec db pg_dump -U aims aims > backup.sql`
 
 ---
 
+## Railway 定时拉数（Cron）
+
+在 Railway 项目添加 **Cron Job**（或外部 cron），每日执行：
+
+```bash
+curl -X POST "https://<你的 API 域名>/api/v1/data/sync/cron" \
+  -H "X-Cron-Secret: <与 API 环境变量 CRON_SECRET 相同>"
+```
+
+API 需设置 `CRON_SECRET`；若同时设 `DATA_SYNC_CRON_ENABLED=true`，进程内也会在 18:30 自动同步。
+
+---
+
 ## 后续开发流程
 
 1. 本地改代码 → `docker compose -f docker-compose.prod.yml up -d --build` 验证  

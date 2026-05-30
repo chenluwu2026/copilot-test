@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { Card } from "@/components/Card";
 import { AttributionChart } from "@/components/AttributionChart";
+import { BacktestChart } from "@/components/BacktestChart";
+import { BacktestList } from "@/components/BacktestList";
 import { MemoryPanel } from "@/components/MemoryPanel";
 import { ReviewBoard } from "@/components/ReviewBoard";
 import { api } from "@/lib/api";
@@ -44,31 +46,15 @@ export default async function ReviewPage() {
           {attribution && <AttributionChart data={attribution} />}
           {attribution && (
             <p className="mt-2 text-xs text-gray-500">
-              已复盘决策 {attribution.decision_stats.reviewed} 条，平均收益{" "}
-              {attribution.decision_stats.avg_return_pct}%
+              已复盘 {attribution.decision_stats.reviewed} 条 · 均收益{" "}
+              {attribution.decision_stats.avg_return_pct}% · 胜率{" "}
+              {attribution.decision_stats.win_rate_pct ?? 0}%
             </p>
           )}
         </Card>
-        <Card title="决策回测（简化）">
-          <ul className="space-y-1 text-sm">
-            {backtest.map((b) => (
-              <li key={b.decision_id} className="flex justify-between">
-                <Link href={`/decisions/${b.decision_id}`} className="text-aims-accent">
-                  {b.decision_id.slice(0, 8)}…
-                </Link>
-                <span
-                  className={
-                    b.return_pct >= 0 ? "text-aims-positive" : "text-aims-negative"
-                  }
-                >
-                  {b.return_pct}%
-                </span>
-              </li>
-            ))}
-            {!backtest.length && (
-              <li className="text-gray-500">运行复盘后显示历史决策收益</li>
-            )}
-          </ul>
+        <Card title="决策复盘收益（真实 K 线）">
+          <BacktestChart items={backtest} />
+          <BacktestList items={backtest} />
         </Card>
       </div>
 

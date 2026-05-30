@@ -251,6 +251,9 @@ class Decision(Base):
         back_populates="decision", cascade="all, delete-orphan"
     )
     feedbacks: Mapped[list["UserFeedback"]] = relationship(back_populates="decision")
+    outcome: Mapped["DecisionOutcome | None"] = relationship(
+        back_populates="decision", uselist=False
+    )
 
 
 class DecisionAssumption(Base):
@@ -517,8 +520,11 @@ class DecisionOutcome(Base):
     what_went_right: Mapped[list] = mapped_column(JSONType, default=list)
     what_went_wrong: Mapped[list] = mapped_column(JSONType, default=list)
     outcome_summary: Mapped[str | None] = mapped_column(Text)
+    price_metadata: Mapped[dict] = mapped_column(JSONType, default=dict)
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     reviewed_by: Mapped[str] = mapped_column(String(64), default="review_agent")
+
+    decision: Mapped["Decision"] = relationship(back_populates="outcome")
 
 
 class MemoryEntry(Base):

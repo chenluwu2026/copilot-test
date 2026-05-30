@@ -112,7 +112,16 @@ export const api = {
       `/review/open-decisions${portfolioId ? `?portfolio_id=${portfolioId}` : ""}`
     ),
   runReview: (decisionId: string) =>
-    fetchApi(`/review/decisions/${decisionId}/run`, { method: "POST" }),
+    fetchApi<{
+      memory_id?: string;
+      return_since_decision_pct: number;
+      price_metadata?: Record<string, unknown>;
+    }>(`/review/decisions/${decisionId}/run`, { method: "POST" }),
+  promoteReviewMemory: (decisionId: string, body?: { title?: string; activate?: boolean }) =>
+    fetchApi<{ memory_id: string }>(`/review/decisions/${decisionId}/memory`, {
+      method: "POST",
+      body: JSON.stringify(body || {}),
+    }),
   attribution: (portfolioId: string) => fetchApi<AttributionReport>(`/review/attribution/${portfolioId}`),
   backtest: (portfolioId: string) => fetchApi<BacktestRow[]>(`/review/backtest/${portfolioId}`),
 
@@ -344,14 +353,32 @@ export type OpenDecision = {
   name: string;
   action: string;
   return_since_decision_pct?: number;
+  price_source?: string;
+  entry_price?: number;
+  exit_price?: number;
+  has_outcome?: boolean;
 };
 
 export type AttributionReport = {
   sector_attribution: { sector: string; unrealized_pnl: number; contribution_pct: number }[];
-  decision_stats: { reviewed: number; avg_return_pct: number };
+  decision_stats: {
+    reviewed: number;
+    avg_return_pct: number;
+    win_rate_pct?: number;
+    best_pct?: number;
+    worst_pct?: number;
+  };
 };
 
-export type BacktestRow = { decision_id: string; return_pct: number; summary?: string };
+export type BacktestRow = {
+  decision_id: string;
+  symbol?: string;
+  name?: string;
+  action?: string;
+  return_pct: number;
+  summary?: string;
+  price_source?: string;
+};
 
 export type SyncJob = {
   id: string;

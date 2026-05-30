@@ -1,5 +1,5 @@
-"""Review Agent + 归因（Phase 4）。"""
-from datetime import datetime, timezone
+"""Review Agent + 归因（Phase 4）：基于真实 K 线的决策后收益。"""
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from uuid import UUID
 
@@ -8,14 +8,81 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.models import (
     Decision,
+    DecisionAction,
     DecisionOutcome,
     DecisionStatus,
     MemoryType,
     OutcomeStatus,
-    Security,
 )
+from app.services.market_data_service import get_close_on_or_before, get_latest_close
 from app.services.memory_service import create_memory
 from app.services.portfolio_service import get_portfolio_summary
+
+
+def compute_decision_return(db: Session, decision: Decision) -> dict:
+    """
+    计算决策后收益率。
+    入场价优先：cio_summary.entry_price → 执行日 K 线 → 估算。
+    出场价：最新 K 线收盘价。
+    """
+    sec = decision.security
+    if not sec:
+        return {"return_pct": None, "price_source": "missing"}
+
+    entry_price: float | None = None
+    entry_date: date | None = None
+    entry_source = "estimate"
+
+    summary = decision.cio_summary or {}
+    if summary.get("entry_price"):
+        entry_price = float(summary["entry_price"])
+        entry_source = "execute_price"
+        if decision.executed_at:
+            entry_date = decision.executed_at.date()
+
+    if entry_price is None and decision.executed_at:
+        d = decision.executed_at.date()
+        bar_close, bar_d = get_close_on_or_before(db, sec.id, d)
+        if bar_close is not None:
+            entry_price = bar_close
+            entry_date = bar_d
+            entry_source = "bars"
+
+    if entry_price is None and sec.last_price:
+        entry_price = float(sec.last_price) * 0.97
+        entry_source = "estimate"
+
+    exit_price, exit_date, exit_source = get_latest_close(db, sec.id)
+    if entry_price is None or exit_price is None or entry_price <= 0:
+        return {
+            "return_pct": None,
+            "entry_price": entry_price,
+            "exit_price": exit_price,
+            "entry_source": entry_source,
+            "exit_source": exit_source,
+            "price_source": "missing",
+        }
+
+    raw = (exit_price - entry_price) / entry_price * 100
+    if decision.action in (DecisionAction.sell, DecisionAction.reduce):
+        ret = round(-raw, 2)
+    else:
+        ret = round(raw, 2)
+
+    price_source = "bars" if entry_source in ("bars", "execute_price") and exit_source == "bars" else "mixed"
+    if entry_source == "estimate":
+        price_source = "estimate"
+
+    return {
+        "return_pct": ret,
+        "entry_price": round(entry_price, 4),
+        "exit_price": round(exit_price, 4),
+        "entry_date": entry_date.isoformat() if entry_date else None,
+        "exit_date": exit_date.isoformat() if exit_date else None,
+        "entry_source": entry_source,
+        "exit_source": exit_source,
+        "price_source": price_source,
+    }
 
 
 def list_open_decisions(db: Session, portfolio_id: UUID | None = None) -> list:
@@ -34,7 +101,7 @@ def list_open_decisions(db: Session, portfolio_id: UUID | None = None) -> list:
         )
         if outcome and outcome.outcome_status == OutcomeStatus.closed:
             continue
-        ret = _estimate_return(db, d)
+        meta = compute_decision_return(db, d)
         result.append(
             {
                 "decision_id": str(d.id),
@@ -42,29 +109,17 @@ def list_open_decisions(db: Session, portfolio_id: UUID | None = None) -> list:
                 "name": d.security.name,
                 "action": d.action.value,
                 "executed_at": d.executed_at.isoformat() if d.executed_at else None,
-                "return_since_decision_pct": ret,
+                "return_since_decision_pct": meta.get("return_pct"),
+                "price_source": meta.get("price_source"),
+                "entry_price": meta.get("entry_price"),
+                "exit_price": meta.get("exit_price"),
                 "has_outcome": outcome is not None,
             }
         )
     return result
 
 
-def _estimate_return(db: Session, decision: Decision) -> float | None:
-    sec = decision.security
-    if not sec or not sec.last_price:
-        return None
-    entry = decision.cio_summary.get("entry_price") if decision.cio_summary else None
-    if entry:
-        entry_price = float(entry)
-    else:
-        entry_price = float(sec.last_price) * 0.97
-    current = float(sec.last_price)
-    if decision.action.value in ("sell", "reduce"):
-        return round((entry_price - current) / entry_price * 100, 2)
-    return round((current - entry_price) / entry_price * 100, 2)
-
-
-def review_decision(db: Session, decision_id: UUID) -> DecisionOutcome:
+def review_decision(db: Session, decision_id: UUID) -> tuple[DecisionOutcome, str | None]:
     decision = db.scalar(
         select(Decision)
         .where(Decision.id == decision_id)
@@ -76,7 +131,11 @@ def review_decision(db: Session, decision_id: UUID) -> DecisionOutcome:
     if not decision:
         raise ValueError("决策不存在")
 
-    ret = _estimate_return(db, decision) or 0.0
+    meta = compute_decision_return(db, decision)
+    ret = meta.get("return_pct")
+    if ret is None:
+        ret = 0.0
+
     assumption_results = []
     for a in decision.assumptions:
         result = "open"
@@ -88,7 +147,11 @@ def review_decision(db: Session, decision_id: UUID) -> DecisionOutcome:
             {
                 "assumption_text": a.assumption_text,
                 "result": result,
-                "evidence": f"决策后收益约 {ret}%",
+                "evidence": (
+                    f"入场 {meta.get('entry_price')} ({meta.get('entry_source')}) → "
+                    f"现价 {meta.get('exit_price')} ({meta.get('exit_source')})，"
+                    f"收益 {ret}%"
+                ),
             }
         )
 
@@ -97,17 +160,25 @@ def review_decision(db: Session, decision_id: UUID) -> DecisionOutcome:
         right.append("方向判断与股价表现一致")
     else:
         wrong.append("股价表现弱于预期，需检视假设")
-    if decision.action.value in ("add", "buy") and ret < -8:
+    if decision.action in (DecisionAction.add, DecisionAction.buy) and ret < -8:
         wrong.append("加仓后回撤较大，可能违反安全边际原则")
 
     summary = (
         f"{decision.security.name} {decision.action.value} 决策复盘："
-        f"迄今收益约 {ret}%。"
+        f"入场 {meta.get('entry_price')} → 现价 {meta.get('exit_price')}，"
+        f"收益 {ret}%（数据源：{meta.get('price_source')}）。"
     )
 
     existing = db.scalar(
         select(DecisionOutcome).where(DecisionOutcome.decision_id == decision_id)
     )
+    price_meta = {
+        "entry_price": meta.get("entry_price"),
+        "exit_price": meta.get("exit_price"),
+        "entry_source": meta.get("entry_source"),
+        "exit_source": meta.get("exit_source"),
+        "price_source": meta.get("price_source"),
+    }
     if existing:
         existing.return_since_decision_pct = Decimal(str(ret))
         existing.assumption_results = assumption_results
@@ -116,6 +187,7 @@ def review_decision(db: Session, decision_id: UUID) -> DecisionOutcome:
         existing.outcome_summary = summary
         existing.outcome_status = OutcomeStatus.closed
         existing.closed_at = datetime.now(timezone.utc)
+        existing.price_metadata = price_meta
         outcome = existing
     else:
         outcome = DecisionOutcome(
@@ -127,22 +199,54 @@ def review_decision(db: Session, decision_id: UUID) -> DecisionOutcome:
             what_went_wrong=wrong,
             outcome_summary=summary,
             closed_at=datetime.now(timezone.utc),
+            price_metadata=price_meta,
         )
         db.add(outcome)
 
+    memory_id = None
     if wrong:
-        create_memory(
+        mem = create_memory(
             db,
             MemoryType.lesson,
             title=f"复盘：{decision.security.symbol} {decision.action.value}",
-            content="；".join(wrong),
+            content="；".join(wrong) + f"（{summary}）",
             evidence_decision_ids=[str(decision_id)],
             active=False,
         )
+        memory_id = str(mem.id)
 
     db.commit()
     db.refresh(outcome)
-    return outcome
+    return outcome, memory_id
+
+
+def promote_outcome_to_memory(
+    db: Session, decision_id: UUID, title: str | None = None, activate: bool = False
+) -> dict:
+    """从已复盘决策一键沉淀记忆。"""
+    outcome = db.scalar(
+        select(DecisionOutcome).where(DecisionOutcome.decision_id == decision_id)
+    )
+    if not outcome:
+        raise ValueError("请先运行复盘")
+    decision = db.scalar(
+        select(Decision)
+        .where(Decision.id == decision_id)
+        .options(joinedload(Decision.security))
+    )
+    if not decision:
+        raise ValueError("决策不存在")
+    mem_title = title or f"复盘沉淀：{decision.security.symbol}"
+    content = outcome.outcome_summary or "；".join(outcome.what_went_wrong or outcome.what_went_right or [])
+    mem = create_memory(
+        db,
+        MemoryType.lesson,
+        mem_title,
+        content,
+        evidence_decision_ids=[str(decision_id)],
+        active=activate,
+    )
+    return {"memory_id": str(mem.id), "active": mem.active, "pending": mem.pending}
 
 
 def attribution_report(db: Session, portfolio_id: UUID) -> dict:
@@ -166,18 +270,15 @@ def attribution_report(db: Session, portfolio_id: UUID) -> dict:
     ]
 
     outcomes = db.scalars(
-        select(DecisionOutcome)
-        .join(Decision)
-        .where(Decision.portfolio_id == portfolio_id)
+        select(DecisionOutcome).join(Decision).where(Decision.portfolio_id == portfolio_id)
     ).all()
+    returns = [float(o.return_since_decision_pct or 0) for o in outcomes]
     decision_stats = {
         "reviewed": len(outcomes),
-        "avg_return_pct": round(
-            sum(float(o.return_since_decision_pct or 0) for o in outcomes) / len(outcomes),
-            2,
-        )
-        if outcomes
-        else 0,
+        "avg_return_pct": round(sum(returns) / len(returns), 2) if returns else 0,
+        "win_rate_pct": round(sum(1 for r in returns if r > 0) / len(returns) * 100, 1) if returns else 0,
+        "best_pct": max(returns) if returns else 0,
+        "worst_pct": min(returns) if returns else 0,
     }
 
     return {
@@ -190,7 +291,6 @@ def attribution_report(db: Session, portfolio_id: UUID) -> dict:
 
 
 def backtest_decisions(db: Session, portfolio_id: UUID) -> list:
-    """简化回测：已复盘决策的收益分布。"""
     rows = db.scalars(
         select(DecisionOutcome)
         .join(Decision)
@@ -198,12 +298,17 @@ def backtest_decisions(db: Session, portfolio_id: UUID) -> list:
             Decision.portfolio_id == portfolio_id,
             DecisionOutcome.outcome_status == OutcomeStatus.closed,
         )
+        .options(joinedload(DecisionOutcome.decision).joinedload(Decision.security))
     ).all()
     return [
         {
             "decision_id": str(o.decision_id),
+            "symbol": o.decision.security.symbol if o.decision.security else "",
+            "name": o.decision.security.name if o.decision.security else "",
+            "action": o.decision.action.value if o.decision else "",
             "return_pct": float(o.return_since_decision_pct or 0),
             "summary": o.outcome_summary,
+            "price_source": (o.price_metadata or {}).get("price_source"),
         }
         for o in rows
     ]

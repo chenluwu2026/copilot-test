@@ -12,7 +12,10 @@ export function ReviewBoard({ items }: { items: OpenDecision[] }) {
   async function review(id: string) {
     setLoading(id);
     try {
-      await api.runReview(id);
+      const res = await api.runReview(id);
+      if (res.memory_id) {
+        alert(`复盘完成。已生成待确认记忆，可在下方记忆库激活。`);
+      }
       router.refresh();
     } catch (e) {
       alert(String(e));
@@ -32,6 +35,7 @@ export function ReviewBoard({ items }: { items: OpenDecision[] }) {
           <th>标的</th>
           <th>动作</th>
           <th>决策后收益</th>
+          <th>数据源</th>
           <th></th>
         </tr>
       </thead>
@@ -51,13 +55,14 @@ export function ReviewBoard({ items }: { items: OpenDecision[] }) {
                 ? `${d.return_since_decision_pct}%`
                 : "—"}
             </td>
+            <td className="text-xs text-gray-500">{d.price_source ?? "—"}</td>
             <td>
               <button
                 onClick={() => review(d.decision_id)}
-                disabled={loading === d.decision_id}
+                disabled={!!loading}
                 className="text-aims-accent"
               >
-                {loading === d.decision_id ? "复盘…" : "运行复盘"}
+                {loading === d.decision_id ? "复盘…" : "复盘"}
               </button>
             </td>
           </tr>
