@@ -18,6 +18,13 @@ export default async function DashboardPage() {
     nav = await api.portfolioNav(p.id, 90);
   }
   const decisions = await api.decisions(p.id);
+  let memories: { title: string; content: string }[] = [];
+  try {
+    const mem = await api.memories();
+    memories = mem.filter((m) => m.active).slice(0, 2);
+  } catch {
+    memories = [];
+  }
 
   return (
     <div className="space-y-4">
@@ -73,6 +80,23 @@ export default async function DashboardPage() {
                 <span>{pos.weight_pct.toFixed(1)}%</span>
               </li>
             ))}
+          </ul>
+        </Card>
+        <Card title="投资记忆">
+          <ul className="space-y-2 text-sm text-gray-300">
+            {memories.map((m) => (
+              <li key={m.title}>
+                <span className="font-medium text-aims-accent">{m.title}</span>
+                <p className="text-xs text-gray-500">{m.content.slice(0, 80)}…</p>
+              </li>
+            ))}
+            {!memories.length && (
+              <li>
+                <Link href="/review" className="text-aims-accent">
+                  前往复盘页查看记忆库 →
+                </Link>
+              </li>
+            )}
           </ul>
         </Card>
       </div>

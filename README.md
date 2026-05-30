@@ -49,3 +49,10 @@ cd apps/web && npm install && npm run dev
 - **信息流** `/events`：结构化事件列表、筛选、新闻录入→自动结构化
 - **公司研究** `/research`、`/research/[symbol]`：十段式基本面、估值情景、相关事件、研究生成草稿
 - 升级数据库：删除 `data/aims.db` 后重启 API 以加载新表与种子
+
+### Phase 3 & 4（已实现）
+
+- **组合页** →「生成 AI 调仓建议」：Factor → Portfolio → Risk → CIO 工作流，输出决策草稿
+- **研究页** → Factor Agent 因子得分
+- **复盘页** → 待复盘决策、行业归因、记忆库激活、Agent 运行记录、简化回测
+- 升级数据库：删除 `data/aims.db` 后重启 API

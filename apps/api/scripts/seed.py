@@ -22,7 +22,14 @@ from app.models import (
 from app.config import settings
 from app.services import decision_service as ds
 from app.services import portfolio_service as ps
-from app.models import ResearchRating, ResearchView, StructuredEvent
+from app.models import (
+    MemoryEntry,
+    MemoryType,
+    ResearchRating,
+    ResearchView,
+    StrategyRule,
+    StructuredEvent,
+)
 from app.services.nav_service import backfill_demo_nav
 from app.services.research_service import create_research_view
 from app.services.structuring_service import ingest_news
@@ -60,6 +67,7 @@ def run_seed() -> None:
             _seed_demo_trades(db, portfolio.id)
             backfill_demo_nav(db, portfolio.id, 30)
         _seed_phase2(db)
+        _seed_phase34(db)
     finally:
         db.close()
 
@@ -326,3 +334,52 @@ def _seed_demo_trades(db, portfolio_id) -> None:
             moutai.last_price or Decimal("1680"),
             note="种子建仓",
         )
+
+
+def _seed_phase34(db) -> None:
+    if db.scalar(select(MemoryEntry).limit(1)):
+        return
+    lessons = [
+        (
+            MemoryType.anti_pattern,
+            "政策反转股勿过早左侧",
+            "对政策反转类股票过早左侧买入，历史胜率较低；需等政策明确后再加仓。",
+        ),
+        (
+            MemoryType.lesson,
+            "港股互联网估值陷阱",
+            "港股互联网低估值不能单独作为买入理由，需配合业绩修复和回购。",
+        ),
+        (
+            MemoryType.lesson,
+            "周期股价值陷阱",
+            "周期股盈利高点时 PE 低估容易形成价值陷阱。",
+        ),
+        (
+            MemoryType.rule,
+            "事件驱动短复盘",
+            "事件驱动类交易需要设置更短复盘周期（2-4周）。",
+        ),
+    ]
+    for mt, title, content in lessons:
+        db.add(
+            MemoryEntry(
+                memory_type=mt,
+                title=title,
+                content=content,
+                active=True,
+                pending=False,
+                confidence=Decimal("0.85"),
+            )
+        )
+    db.flush()
+    if not db.scalar(select(StrategyRule).limit(1)):
+        db.add(
+            StrategyRule(
+                rule_code="MAX_INTERNET_WITHOUT_EARNINGS",
+                natural_language="互联网加仓需同时满足：业绩同比改善或回购加码",
+                machine_check={"type": "note"},
+                active=True,
+            )
+        )
+    db.commit()

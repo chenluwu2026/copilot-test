@@ -287,5 +287,8 @@ def execute_decision(db: Session, decision_id: UUID, price: Decimal | None = Non
     from datetime import datetime
 
     decision.executed_at = datetime.utcnow()
+    summary = dict(decision.cio_summary or {})
+    summary["entry_price"] = float(price)
+    decision.cio_summary = summary
     db.commit()
     return trade

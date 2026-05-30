@@ -61,6 +61,17 @@ export default async function ResearchDetailPage({
   const fa = latest.fundamental_analysis;
   const scenarios = latest.scenario_analysis?.scenarios || [];
 
+  let factorRow = null;
+  try {
+    const portfolios = await api.portfolios();
+    if (portfolios[0]) {
+      const factors = await api.factors(portfolios[0].id);
+      factorRow = factors.find((f) => f.symbol === symbol) || null;
+    }
+  } catch {
+    factorRow = null;
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -109,6 +120,22 @@ export default async function ResearchDetailPage({
           </ul>
         </Card>
       </div>
+
+      {factorRow && (
+        <Card title="因子分析 (Factor Agent)">
+          <div className="grid grid-cols-3 gap-2 text-sm sm:grid-cols-6">
+            {Object.entries(factorRow.factors).map(([k, v]) => (
+              <div key={k} className="rounded bg-aims-bg p-2 text-center">
+                <p className="text-xs text-gray-500">{k}</p>
+                <p className="font-semibold">{v}</p>
+              </div>
+            ))}
+          </div>
+          {factorRow.warnings.length > 0 && (
+            <p className="mt-2 text-xs text-yellow-400">{factorRow.warnings.join("；")}</p>
+          )}
+        </Card>
+      )}
 
       {scenarios.length > 0 && (
         <Card title="估值情景">

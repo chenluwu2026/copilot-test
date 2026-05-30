@@ -1,4 +1,6 @@
 import { Card } from "@/components/Card";
+import { RebalanceButton } from "@/components/RebalanceButton";
+import { RiskMeter } from "@/components/RiskMeter";
 import { api } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
@@ -9,10 +11,19 @@ export default async function PortfolioPage() {
   if (!p) return <p>暂无组合</p>;
   const summary = await api.portfolioSummary(p.id);
   const trades = await api.portfolioTrades(p.id);
+  let risk = null;
+  try {
+    risk = await api.riskDashboard(p.id);
+  } catch {
+    risk = null;
+  }
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">模拟组合 — {summary.name}</h1>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-2xl font-bold">模拟组合 — {summary.name}</h1>
+        <RebalanceButton portfolioId={p.id} />
+      </div>
       <div className="grid gap-4 sm:grid-cols-3">
         <Card title="净值">
           <p className="text-xl">{summary.nav.toLocaleString("zh-CN")}</p>
@@ -24,6 +35,12 @@ export default async function PortfolioPage() {
           <p className="text-xl">{summary.cumulative_return_pct.toFixed(2)}%</p>
         </Card>
       </div>
+
+      {risk && (
+        <Card title="风险仪表 (Risk Agent)">
+          <RiskMeter risk={risk} />
+        </Card>
+      )}
 
       <Card title="持仓">
         <table className="w-full text-left text-sm">

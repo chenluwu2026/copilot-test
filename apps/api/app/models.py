@@ -382,6 +382,84 @@ class ResearchView(Base):
     security: Mapped["Security"] = relationship()
 
 
+class AgentRunStatus(str, enum.Enum):
+    running = "running"
+    success = "success"
+    failed = "failed"
+
+
+class MemoryType(str, enum.Enum):
+    lesson = "lesson"
+    rule = "rule"
+    anti_pattern = "anti_pattern"
+    user_preference = "user_preference"
+
+
+class OutcomeStatus(str, enum.Enum):
+    open = "open"
+    closed = "closed"
+    invalidated = "invalidated"
+
+
+class AgentRun(Base):
+    __tablename__ = "agent_runs"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=new_uuid)
+    portfolio_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("portfolios.id"))
+    workflow_name: Mapped[str] = mapped_column(String(64), nullable=False)
+    trigger: Mapped[str] = mapped_column(String(32), default="manual")
+    status: Mapped[AgentRunStatus] = mapped_column(Enum(AgentRunStatus), default=AgentRunStatus.running)
+    input_context: Mapped[dict] = mapped_column(JSONType, default=dict)
+    output: Mapped[dict] = mapped_column(JSONType, default=dict)
+    error_message: Mapped[str | None] = mapped_column(Text)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class DecisionOutcome(Base):
+    __tablename__ = "decision_outcomes"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=new_uuid)
+    decision_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("decisions.id"), unique=True)
+    outcome_status: Mapped[OutcomeStatus] = mapped_column(Enum(OutcomeStatus), default=OutcomeStatus.open)
+    return_since_decision_pct: Mapped[Decimal | None] = mapped_column(Numeric(10, 4))
+    max_drawdown_pct: Mapped[Decimal | None] = mapped_column(Numeric(10, 4))
+    assumption_results: Mapped[list] = mapped_column(JSONType, default=list)
+    what_went_right: Mapped[list] = mapped_column(JSONType, default=list)
+    what_went_wrong: Mapped[list] = mapped_column(JSONType, default=list)
+    outcome_summary: Mapped[str | None] = mapped_column(Text)
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    reviewed_by: Mapped[str] = mapped_column(String(64), default="review_agent")
+
+
+class MemoryEntry(Base):
+    __tablename__ = "memory_entries"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=new_uuid)
+    memory_type: Mapped[MemoryType] = mapped_column(Enum(MemoryType), nullable=False)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    evidence_decision_ids: Mapped[list] = mapped_column(JSONType, default=list)
+    tags: Mapped[list] = mapped_column(JSONType, default=list)
+    confidence: Mapped[Decimal] = mapped_column(Numeric(4, 3), default=Decimal("0.8"))
+    active: Mapped[bool] = mapped_column(Boolean, default=False)
+    pending: Mapped[bool] = mapped_column(Boolean, default=True)
+    version: Mapped[int] = mapped_column(default=1)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class StrategyRule(Base):
+    __tablename__ = "strategy_rules"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=new_uuid)
+    rule_code: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    natural_language: Mapped[str] = mapped_column(Text, nullable=False)
+    machine_check: Mapped[dict] = mapped_column(JSONType, default=dict)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    source_memory_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class DailyPortfolioReport(Base):
     __tablename__ = "daily_portfolio_reports"
     __table_args__ = (UniqueConstraint("portfolio_id", "report_date", name="uq_report_date"),)

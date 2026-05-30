@@ -72,6 +72,33 @@ export const api = {
   researchBySymbol: (symbol: string) => fetchApi<ResearchDetail>(`/research/symbol/${symbol}`),
   generateResearchDraft: (securityId: string) =>
     fetchApi(`/research/${securityId}/generate-draft`, { method: "POST" }),
+
+  runRebalance: (portfolioId: string) =>
+    fetchApi<{ run_id: string; decision_ids: string[] }>(
+      `/agents/workflows/rebalance/${portfolioId}`,
+      { method: "POST" }
+    ),
+  agentRuns: (portfolioId?: string) =>
+    fetchApi<AgentRun[]>(`/agents/runs${portfolioId ? `?portfolio_id=${portfolioId}` : ""}`),
+  agentRun: (id: string) => fetchApi<AgentRunDetail>(`/agents/runs/${id}`),
+  factors: (portfolioId: string) => fetchApi<FactorRow[]>(`/agents/factors/${portfolioId}`),
+  riskDashboard: (portfolioId: string) => fetchApi<RiskDashboard>(`/agents/risk/${portfolioId}`),
+
+  memories: (pending?: boolean) => {
+    const q = pending !== undefined ? `?pending=${pending}` : "";
+    return fetchApi<MemoryItem[]>(`/memory${q}`);
+  },
+  activateMemory: (id: string) =>
+    fetchApi(`/memory/${id}/activate`, { method: "POST" }),
+
+  openDecisions: (portfolioId?: string) =>
+    fetchApi<OpenDecision[]>(
+      `/review/open-decisions${portfolioId ? `?portfolio_id=${portfolioId}` : ""}`
+    ),
+  runReview: (decisionId: string) =>
+    fetchApi(`/review/decisions/${decisionId}/run`, { method: "POST" }),
+  attribution: (portfolioId: string) => fetchApi<AttributionReport>(`/review/attribution/${portfolioId}`),
+  backtest: (portfolioId: string) => fetchApi<BacktestRow[]>(`/review/backtest/${portfolioId}`),
 };
 
 export type Portfolio = {
@@ -183,6 +210,56 @@ export type ResearchDetail = {
   history: ResearchViewDetail[];
   related_events: StructuredEvent[];
 };
+
+export type AgentRun = {
+  id: string;
+  workflow_name: string;
+  status: string;
+  decision_ids: string[];
+  started_at?: string;
+};
+
+export type AgentRunDetail = AgentRun & {
+  output?: { trace?: { steps?: unknown[] }; decision_ids?: string[] };
+};
+
+export type FactorRow = {
+  symbol: string;
+  name: string;
+  factors: Record<string, number>;
+  warnings: string[];
+};
+
+export type RiskDashboard = {
+  limits: Record<string, number>;
+  cash_pct: number;
+  alerts: { type: string; symbol?: string; weight_pct?: number; limit?: number }[];
+  ok: boolean;
+};
+
+export type MemoryItem = {
+  id: string;
+  memory_type: string;
+  title: string;
+  content: string;
+  active: boolean;
+  pending: boolean;
+};
+
+export type OpenDecision = {
+  decision_id: string;
+  symbol: string;
+  name: string;
+  action: string;
+  return_since_decision_pct?: number;
+};
+
+export type AttributionReport = {
+  sector_attribution: { sector: string; unrealized_pnl: number; contribution_pct: number }[];
+  decision_stats: { reviewed: number; avg_return_pct: number };
+};
+
+export type BacktestRow = { decision_id: string; return_pct: number; summary?: string };
 
 export type ResearchViewDetail = {
   id: string;
