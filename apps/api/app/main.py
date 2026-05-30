@@ -41,13 +41,15 @@ async def optional_api_key(request: Request, call_next):
     return await call_next(request)
 
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.cors_origin_list,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+_cors: dict = {
+    "allow_origins": settings.cors_origin_list,
+    "allow_credentials": True,
+    "allow_methods": ["*"],
+    "allow_headers": ["*"],
+}
+if settings.cors_allow_railway:
+    _cors["allow_origin_regex"] = r"https://[\w-]+\.up\.railway\.app"
+app.add_middleware(CORSMiddleware, **_cors)
 
 prefix = settings.api_prefix
 app.include_router(securities.router, prefix=prefix)

@@ -1,11 +1,15 @@
-# Railway 多服务说明：在 Dashboard 分别为 api / web 创建服务并指定 Dockerfile
-# 见 docs/DEPLOY.md
+# 已拆分为两个服务配置，请勿在本文件部署 Web：
+#   API → /railway.api.toml  （Dashboard Config file 填此路径）
+#   Web → /railway.web.toml
+#
+# 完整步骤见 docs/DEPLOY_RAILWAY.md
 
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile.api"
+watchPatterns = ["apps/api/**", "schemas/**", "Dockerfile.api"]
 
 [deploy]
 healthcheckPath = "/health"
-healthcheckTimeout = 120
+healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"

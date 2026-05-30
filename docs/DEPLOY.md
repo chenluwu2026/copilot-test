@@ -116,56 +116,30 @@ Settings → Secrets and variables → **Actions** → **Variables**：
 
 ---
 
-## 方案 B：Railway（免运维）
+## 方案 B：Railway（免运维 · 已配套）
 
-Railway 适合个人：Postgres + API + Web，连 GitHub 自动部署。
+连 GitHub 后 **push 自动部署**，无需 VPS。项目内包含：
 
-### 1. 创建项目
+- `railway.api.toml` / `railway.web.toml` — 分服务构建与健康检查  
+- `deploy/railway.*.vars.example` — 变量模板（含 `${{aims-api.RAILWAY_PUBLIC_DOMAIN}}` 引用）  
+- API 支持 `CORS_ALLOW_RAILWAY=true`、Railway Postgres SSL  
 
-1. 打开 https://railway.app ，用 GitHub 登录  
-2. **New Project** → **Deploy from GitHub repo** → 选 `copilot-test`
+**逐步图文说明见 [`docs/DEPLOY_RAILWAY.md`](./DEPLOY_RAILWAY.md)**（约 15 分钟配完 Postgres + API + Web）。
 
-### 2. 添加 PostgreSQL
-
-- **Add Plugin** → **PostgreSQL**  
-- 记下自动生成的 `DATABASE_URL`
-
-### 3. 部署 API 服务
-
-- **New Service** → **GitHub Repo** → 同一仓库  
-- **Settings** → **Build** → Dockerfile path: `Dockerfile.api`  
-- **Variables**：
+快速变量示例：
 
 ```env
+# API 服务
 DATABASE_URL=${{Postgres.DATABASE_URL}}
-CORS_ORIGINS=https://你的web域名.up.railway.app
 RUN_SEED=true
-SCHEMAS_DIR=/schemas
-DATA_PROVIDER=akshare
-API_KEY=你自己设一串随机密码
+CORS_ALLOW_RAILWAY=true
+
+# Web 服务（服务名 aims-api 需与 Dashboard 一致）
+NEXT_PUBLIC_API_URL=https://${{aims-api.RAILWAY_PUBLIC_DOMAIN}}
+API_URL=https://${{aims-api.RAILWAY_PUBLIC_DOMAIN}}
 ```
 
-- **Networking** → Generate domain，得到例如 `https://aims-api-production.up.railway.app`
-
-### 4. 部署 Web 服务
-
-- 再 **New Service**，Dockerfile: `Dockerfile.web`  
-- **Variables**：
-
-```env
-NEXT_PUBLIC_API_URL=https://aims-api-production.up.railway.app
-```
-
-- 若设置了 `API_KEY`，Web 服务需同时设 `NEXT_PUBLIC_API_KEY`（同值），请求会自动带 `X-API-Key`
-
-- Generate domain → `https://aims-web-production.up.railway.app`
-
-### 5. 首次访问
-
-打开 Web 域名 → 应能看到 Dashboard。  
-到 **数据** 页点「一键全量」拉行情（AkShare 需能访问外网）。
-
-> **注意**：Railway 免费额度有限，长期自用更划算用方案 A 小 VPS。
+> Railway 免费额度有限；长期 heavy 使用更推荐方案 A。
 
 ---
 

@@ -1,0 +1,11 @@
+# 粘贴到 Railway → aims-api 服务 → Variables（服务名可自定，引用时用 ${{服务名.变量}}）
+
+DATABASE_URL=${{Postgres.DATABASE_URL}}
+SCHEMAS_DIR=/schemas
+RUN_SEED=true
+DATA_PROVIDER=akshare
+CORS_ALLOW_RAILWAY=true
+# 部署 Web 并生成域名后，可追加精确来源（逗号分隔）：
+# CORS_ORIGINS=https://${{aims-web.RAILWAY_PUBLIC_DOMAIN}}
+# 可选安全：
+# API_KEY=随机长字符串
