@@ -294,6 +294,94 @@ class UserFeedback(Base):
     decision: Mapped["Decision"] = relationship(back_populates="feedbacks")
 
 
+class ImpactDirection(str, enum.Enum):
+    positive = "positive"
+    negative = "negative"
+    neutral = "neutral"
+    mixed = "mixed"
+
+
+class ConfidenceLevel(str, enum.Enum):
+    low = "low"
+    medium = "medium"
+    high = "high"
+
+
+class SourceType(str, enum.Enum):
+    news = "news"
+    filing = "filing"
+    social = "social"
+    report = "report"
+
+
+class ResearchRating(str, enum.Enum):
+    strong_buy = "strong_buy"
+    buy = "buy"
+    hold = "hold"
+    reduce = "reduce"
+    sell = "sell"
+    neutral = "neutral"
+
+
+class ResearchViewType(str, enum.Enum):
+    company = "company"
+    industry = "industry"
+    event = "event"
+
+
+class NewsArticle(Base):
+    __tablename__ = "news_articles"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=new_uuid)
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    body: Mapped[str | None] = mapped_column(Text)
+    source_name: Mapped[str] = mapped_column(String(64), default="aims_seed")
+    source_url: Mapped[str | None] = mapped_column(Text)
+    published_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class StructuredEvent(Base):
+    __tablename__ = "structured_events"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=new_uuid)
+    source_type: Mapped[SourceType] = mapped_column(Enum(SourceType), default=SourceType.news)
+    source_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    companies: Mapped[list] = mapped_column(JSONType, default=list)
+    event_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    impact_direction: Mapped[ImpactDirection] = mapped_column(Enum(ImpactDirection))
+    impact_dimensions: Mapped[list] = mapped_column(JSONType, default=list)
+    confidence: Mapped[ConfidenceLevel] = mapped_column(Enum(ConfidenceLevel))
+    time_sensitivity: Mapped[ConfidenceLevel] = mapped_column(Enum(ConfidenceLevel))
+    related_securities: Mapped[list] = mapped_column(JSONType, default=list)
+    follow_ups: Mapped[list] = mapped_column(JSONType, default=list)
+    summary: Mapped[str | None] = mapped_column(Text)
+    published_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    extracted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ResearchView(Base):
+    __tablename__ = "research_views"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=new_uuid)
+    security_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("securities.id"), nullable=False)
+    view_type: Mapped[ResearchViewType] = mapped_column(
+        Enum(ResearchViewType), default=ResearchViewType.company
+    )
+    rating: Mapped[ResearchRating] = mapped_column(Enum(ResearchRating), default=ResearchRating.neutral)
+    horizon: Mapped[str | None] = mapped_column(String(32))
+    content_structured: Mapped[dict] = mapped_column(JSONType, default=dict)
+    valuation_snapshot: Mapped[dict] = mapped_column(JSONType, default=dict)
+    scenario_analysis: Mapped[dict] = mapped_column(JSONType, default=dict)
+    investment_conclusion: Mapped[str] = mapped_column(Text, default="")
+    agent_name: Mapped[str] = mapped_column(String(64), default="research_agent")
+    version: Mapped[int] = mapped_column(default=1)
+    supersedes_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    security: Mapped["Security"] = relationship()
+
+
 class DailyPortfolioReport(Base):
     __tablename__ = "daily_portfolio_reports"
     __table_args__ = (UniqueConstraint("portfolio_id", "report_date", name="uq_report_date"),)

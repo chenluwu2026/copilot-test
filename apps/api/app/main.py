@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.database import Base, engine
-from app.routers import decisions, portfolios, securities, watchlists
+from app.routers import decisions, events, portfolios, research, securities, watchlists
 from scripts.seed import run_seed
 
 
@@ -30,6 +30,8 @@ app.include_router(securities.router, prefix=prefix)
 app.include_router(portfolios.router, prefix=prefix)
 app.include_router(decisions.router, prefix=prefix)
 app.include_router(watchlists.router, prefix=prefix)
+app.include_router(events.router, prefix=prefix)
+app.include_router(research.router, prefix=prefix)
 
 
 @app.get("/health")

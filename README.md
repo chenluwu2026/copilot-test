@@ -43,3 +43,9 @@ cd apps/web && npm install && npm run dev
 打开 http://localhost:3000 — 首次启动 API 会自动种子数据（标的、组合、示例决策）。
 
 或使用根目录 `make up` / `make api` / `make web`。
+
+### Phase 2（已实现）
+
+- **信息流** `/events`：结构化事件列表、筛选、新闻录入→自动结构化
+- **公司研究** `/research`、`/research/[symbol]`：十段式基本面、估值情景、相关事件、研究生成草稿
+- 升级数据库：删除 `data/aims.db` 后重启 API 以加载新表与种子

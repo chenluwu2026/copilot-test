@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Card } from "@/components/Card";
 import { api } from "@/lib/api";
 
@@ -29,7 +30,13 @@ export default async function WatchlistPage() {
               {wl.items.map((i) => (
                 <tr key={i.symbol} className="border-t border-aims-border">
                   <td className="py-2">
-                    {i.name} <span className="text-gray-500">{i.symbol}</span>
+                    <Link
+                      href={`/research/${encodeURIComponent(i.symbol)}`}
+                      className="text-aims-accent hover:underline"
+                    >
+                      {i.name}
+                    </Link>{" "}
+                    <span className="text-gray-500">{i.symbol}</span>
                   </td>
                   <td>{tierLabel[i.tier] || i.tier}</td>
                   <td className="text-gray-400">{i.thesis_summary || "—"}</td>

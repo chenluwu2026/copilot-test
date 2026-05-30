@@ -22,7 +22,10 @@ from app.models import (
 from app.config import settings
 from app.services import decision_service as ds
 from app.services import portfolio_service as ps
+from app.models import ResearchRating, ResearchView, StructuredEvent
 from app.services.nav_service import backfill_demo_nav
+from app.services.research_service import create_research_view
+from app.services.structuring_service import ingest_news
 from app.services.user_context import get_default_user
 
 
@@ -56,8 +59,138 @@ def run_seed() -> None:
             _seed_sample_decisions(db, portfolio.id)
             _seed_demo_trades(db, portfolio.id)
             backfill_demo_nav(db, portfolio.id, 30)
+        _seed_phase2(db)
     finally:
         db.close()
+
+
+def _seed_phase2(db) -> None:
+    if db.scalar(select(StructuredEvent).limit(1)):
+        return
+
+    news_items = [
+        (
+            "腾讯控股发布季报：收入同比+8%，回购计划延续",
+            "腾讯控股公布季度业绩，总收入同比增长8%，净利润超预期。公司宣布继续执行股份回购计划，"
+            "游戏业务国内流水企稳，广告收入增速改善。管理层强调 AI 投入将聚焦效率提升。",
+            ["00700.HK", "03690.HK"],
+        ),
+        (
+            "贵州茅台批价坚挺，渠道库存处于健康水平",
+            "据渠道调研，飞天茅台批价维持稳定，经销商库存约1.5个月，动销符合旺季预期。"
+            "公司直销占比提升有助于利润率维持高位。",
+            ["600519.SH"],
+        ),
+        (
+            "宁德时代获海外大单，产能利用率回升",
+            "宁德时代宣布与欧洲车企签署长期供货协议，市场关注毛利率修复与产能利用率回升节奏。",
+            ["300750.SZ", "002594.SZ"],
+        ),
+        (
+            "港股科技板块受宏观数据扰动，互联网估值分化",
+            "美国通胀数据公布后港股科技波动加大，市场重新定价降息预期，互联网龙头估值分化加剧。",
+            ["00700.HK", "09988.HK", "03690.HK"],
+        ),
+        (
+            "央行降准0.25个百分点，流动性预期改善",
+            "中国人民银行宣布下调存款准备金率，市场解读为稳增长信号，金融与消费板块情绪回暖。",
+            ["601318.SH", "600036.SH"],
+        ),
+    ]
+    for title, body, symbols in news_items:
+        ids = []
+        for sym in symbols:
+            sec = db.scalar(select(Security).where(Security.symbol == sym))
+            if sec:
+                ids.append(sec.id)
+        if ids:
+            ingest_news(db, title, body, ids, source_name="aims_seed")
+
+    _seed_research_views(db)
+
+
+def _seed_research_views(db) -> None:
+    if db.scalar(select(ResearchView).limit(1)):
+        return
+
+    tencent = db.scalar(select(Security).where(Security.symbol == "00700.HK"))
+    if tencent:
+        create_research_view(
+            db,
+            tencent.id,
+            ResearchRating.buy,
+            {
+                "business_model": "社交+游戏+广告+金融科技+云与 AI 的多引擎平台；游戏与广告为利润核心。",
+                "industry_space": "数字娱乐与在线广告市场空间大，云服务与 AI 为第二增长曲线。",
+                "competitive_landscape": "国内社交壁垒高；游戏面临监管与竞品；广告与阿里、字节竞争。",
+                "financial_quality": "现金流充沛，资产负债表稳健，回购提升股东回报。",
+                "management": "资本配置偏向回购与战略投资，AI 投入节奏受关注。",
+                "growth_drivers": "游戏新品周期、广告复苏、视频号商业化、云与 AI 货币化。",
+                "key_risks": "游戏流水波动、监管、AI 投入侵蚀利润率、宏观消费。",
+                "current_valuation": "PE 处于近五年偏低分位，不能单独作为买入理由，需业绩验证。",
+                "core_variables_6_12m": [
+                    "国内游戏流水同比",
+                    "广告收入增速",
+                    "回购规模",
+                    "AI 相关 Capex 与利润率",
+                ],
+            },
+            "基本面修复+回购支撑，维持买入评级；交易需经组合与风控，见决策日志。",
+            horizon="6-12个月",
+            scenario_analysis={
+                "methods": ["PE", "historical_percentile"],
+                "scenarios": [
+                    {
+                        "name": "optimistic",
+                        "probability_weight": 0.3,
+                        "target_price_low": 420,
+                        "target_price_high": 480,
+                        "triggers": ["游戏超预期", "广告强劲复苏"],
+                    },
+                    {
+                        "name": "base",
+                        "probability_weight": 0.5,
+                        "target_price_low": 360,
+                        "target_price_high": 410,
+                        "triggers": ["业绩符合预期"],
+                    },
+                    {
+                        "name": "pessimistic",
+                        "probability_weight": 0.2,
+                        "target_price_low": 300,
+                        "target_price_high": 340,
+                        "triggers": ["监管收紧", "游戏不及预期"],
+                        "downside_risk_note": "盈利与估值双杀",
+                    },
+                ],
+                "current_price": 380,
+                "currency": "HKD",
+            },
+            valuation_snapshot={"pe_ttm": 18, "percentile_5y": 0.25},
+            agent_name="research_agent",
+        )
+
+    moutai = db.scalar(select(Security).where(Security.symbol == "600519.SH"))
+    if moutai:
+        create_research_view(
+            db,
+            moutai.id,
+            ResearchRating.hold,
+            {
+                "business_model": "高端白酒龙头，飞天茅台为核心单品，直销占比提升。",
+                "industry_space": "高端白酒需求具韧性，行业进入品牌分化阶段。",
+                "competitive_landscape": "绝对龙头地位稳固，五粮液等竞品在千元价格带竞争。",
+                "financial_quality": "ROE 与毛利率极高，经营现金流优秀，几乎无有息负债压力。",
+                "management": "渠道改革与价格管控能力强，分红率稳定。",
+                "growth_drivers": "结构升级、直销占比、系列酒放量。",
+                "key_risks": "批价波动、消费税政策、宏观消费降级。",
+                "current_valuation": "估值处于历史中高位，需业绩消化。",
+                "core_variables_6_12m": ["批价", "渠道库存", "直销占比", "系列酒增速"],
+            },
+            "品质无忧但估值不便宜，维持持有，大幅加仓需估值回调或业绩加速。",
+            horizon="12个月+",
+            agent_name="research_agent",
+        )
 
 
 def _seed_securities(db) -> None:

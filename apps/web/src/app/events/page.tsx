@@ -1,15 +1,44 @@
-import { Card } from "@/components/Card";
+import { Suspense } from "react";
+import { StructuredEventCard } from "@/components/StructuredEventCard";
+import { EventsFilter } from "@/components/EventsFilter";
+import { NewsIngestForm } from "@/components/NewsIngestForm";
+import { api } from "@/lib/api";
 
-export default function EventsPage() {
+export const dynamic = "force-dynamic";
+
+export default async function EventsPage({
+  searchParams,
+}: {
+  searchParams: { impact_direction?: string; time_sensitivity?: string; event_type?: string };
+}) {
+  const params: Record<string, string> = {};
+  if (searchParams.impact_direction) params.impact_direction = searchParams.impact_direction;
+  if (searchParams.time_sensitivity) params.time_sensitivity = searchParams.time_sensitivity;
+  if (searchParams.event_type) params.event_type = searchParams.event_type;
+
+  const events = await api.events(params);
+
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">News & Events</h1>
-      <Card>
-        <p className="text-sm text-gray-400">
-          <span className="text-aims-research">Phase 2</span>：结构化事件流（公司、事件类型、影响方向、
-          follow_ups）。Data Agent + Structuring Agent 接入后在此展示。
-        </p>
-      </Card>
+      <p className="text-sm text-gray-400">
+        结构化信息流：公司、事件类型、影响方向、维度、置信度与 follow-ups。
+      </p>
+
+      <Suspense>
+        <EventsFilter />
+      </Suspense>
+
+      <NewsIngestForm />
+
+      <div className="space-y-3">
+        {events.map((e) => (
+          <StructuredEventCard key={e.id} event={e} />
+        ))}
+        {!events.length && (
+          <p className="text-gray-500">暂无事件。请启动 API 或录入新闻。</p>
+        )}
+      </div>
     </div>
   );
 }

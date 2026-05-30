@@ -56,6 +56,22 @@ export const api = {
     fetchApi(`/decisions/${id}/feedback`, { method: "POST", body: JSON.stringify(body) }),
 
   watchlists: () => fetchApi<Watchlist[]>("/watchlists"),
+
+  events: (params?: Record<string, string>) => {
+    const q = new URLSearchParams(params).toString();
+    return fetchApi<StructuredEvent[]>(`/events${q ? `?${q}` : ""}`);
+  },
+  event: (id: string) => fetchApi<StructuredEvent>(`/events/${id}`),
+  ingestNews: (body: object) =>
+    fetchApi<{ event_id: string }>("/events/ingest", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  researchList: () => fetchApi<ResearchSummary[]>("/research"),
+  researchBySymbol: (symbol: string) => fetchApi<ResearchDetail>(`/research/symbol/${symbol}`),
+  generateResearchDraft: (securityId: string) =>
+    fetchApi(`/research/${securityId}/generate-draft`, { method: "POST" }),
 };
 
 export type Portfolio = {
@@ -132,4 +148,63 @@ export type Watchlist = {
   id: string;
   name: string;
   items: { symbol: string; name: string; tier: string; thesis_summary?: string }[];
+};
+
+export type StructuredEvent = {
+  id: string;
+  event_type: string;
+  impact_direction: string;
+  impact_dimensions: string[];
+  confidence: string;
+  time_sensitivity: string;
+  companies: { symbol: string; name: string; security_id?: string }[];
+  related_securities: { symbol: string }[];
+  follow_ups: string[];
+  summary: string;
+  published_at: string;
+  article?: { title: string; body?: string; source_name: string };
+};
+
+export type ResearchSummary = {
+  security_id: string;
+  symbol: string;
+  name: string;
+  sector?: string;
+  rating: string;
+  horizon?: string;
+  version: number;
+  investment_conclusion: string;
+  updated_at?: string;
+};
+
+export type ResearchDetail = {
+  security: { id: string; symbol: string; name: string; sector?: string; last_price?: number };
+  latest: ResearchViewDetail;
+  history: ResearchViewDetail[];
+  related_events: StructuredEvent[];
+};
+
+export type ResearchViewDetail = {
+  id: string;
+  rating: string;
+  horizon?: string;
+  version: number;
+  agent_name: string;
+  created_at?: string;
+  fundamental_analysis: Record<string, string | string[]>;
+  investment_conclusion: string;
+  valuation_snapshot?: Record<string, unknown>;
+  scenario_analysis?: {
+    methods?: string[];
+    scenarios?: {
+      name: string;
+      target_price_low: number;
+      target_price_high: number;
+      triggers: string[];
+      probability_weight?: number;
+      downside_risk_note?: string;
+    }[];
+    current_price?: number;
+    currency?: string;
+  };
 };
