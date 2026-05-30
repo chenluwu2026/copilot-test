@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     data_provider: str = "akshare"  # akshare | mock
     quote_sync_days: int = 120
     filing_sync_days: int = 90
+    quote_sync_incremental: bool = True
+    quote_sync_overlap_days: int = 5
+    quote_sync_retries: int = 2
     data_stale_days: int = 3
     data_sync_cron_enabled: bool = False
     data_sync_cron_time: str = "18:30"

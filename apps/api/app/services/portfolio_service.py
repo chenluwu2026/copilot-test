@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from uuid import UUID
 
@@ -284,9 +284,7 @@ def execute_decision(db: Session, decision_id: UUID, price: Decimal | None = Non
         note=f"执行决策 {decision.action.value}",
     )
     decision.status = DecisionStatus.executed
-    from datetime import datetime
-
-    decision.executed_at = datetime.utcnow()
+    decision.executed_at = datetime.now(timezone.utc)
     summary = dict(decision.cio_summary or {})
     summary["entry_price"] = float(price)
     decision.cio_summary = summary
