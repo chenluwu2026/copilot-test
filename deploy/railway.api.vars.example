@@ -5,6 +5,13 @@ SCHEMAS_DIR=/schemas
 RUN_SEED=true
 DATA_PROVIDER=akshare
 CORS_ALLOW_RAILWAY=true
+DATA_SYNC_CRON_ENABLED=true
+DATA_SYNC_CRON_TIME=18:30
+DATA_SYNC_CRON_TZ=Asia/Shanghai
+CRON_SECRET=随机字符串
+# AGENT_MODE=llm
+# OPENAI_API_KEY=sk-...
+# LLM_MODEL=gpt-4o-mini
 # 部署 Web 并生成域名后，可追加精确来源（逗号分隔）：
 # CORS_ORIGINS=https://${{aims-web.RAILWAY_PUBLIC_DOMAIN}}
 # 可选安全：

@@ -136,7 +136,15 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body || {}),
     }),
+  syncAllAsync: (body?: object) =>
+    fetchApi<{ job_id: string; status: string; message?: string }>("/data/sync/all/async", {
+      method: "POST",
+      body: JSON.stringify(body || {}),
+    }),
+  syncJob: (id: string) => fetchApi<SyncJob>(`/data/sync/jobs/${id}`),
   syncJobs: () => fetchApi<SyncJob[]>(`/data/sync/jobs`),
+  dataQuality: () => fetchApi<DataQualityReport>("/data/quality"),
+  agentConfig: () => fetchApi<AgentConfig>("/agents/config"),
   barsBySymbol: (symbol: string, days = 90) =>
     fetchApi<MarketBar[]>(`/data/bars/symbol/${encodeURIComponent(symbol)}?days=${days}`),
   filings: (securityId?: string, limit = 50) =>
@@ -263,17 +271,55 @@ export type AgentRun = {
   status: string;
   decision_ids: string[];
   started_at?: string;
+  agent_mode?: string;
 };
 
 export type AgentRunDetail = AgentRun & {
-  output?: { trace?: { steps?: unknown[] }; decision_ids?: string[] };
+  input_context?: { agent_mode?: string; portfolio_id?: string };
+  output?: {
+    trace?: { steps?: unknown[]; cio_mode?: string; agent_mode?: string };
+    decision_ids?: string[];
+  };
+  error_message?: string;
+  finished_at?: string;
 };
 
 export type FactorRow = {
   symbol: string;
   name: string;
+  data_complete?: boolean;
   factors: Record<string, number>;
   warnings: string[];
+};
+
+export type DataQualityReport = {
+  summary: {
+    securities: number;
+    with_fresh_quotes: number;
+    stale_quotes: number;
+    missing_quotes: number;
+    coverage_pct: number;
+    stale_threshold_days: number;
+    data_provider: string;
+  };
+  symbols: {
+    symbol: string;
+    name: string;
+    market: string;
+    last_bar_date: string | null;
+    freshness: string;
+    filing_count: number;
+    financial_report_count: number;
+  }[];
+};
+
+export type AgentConfig = {
+  agent_mode: string;
+  structuring_mode: string;
+  llm_configured: boolean;
+  llm_active: boolean;
+  llm_model: string | null;
+  data_sync_cron_enabled: boolean;
 };
 
 export type RiskDashboard = {
@@ -313,6 +359,8 @@ export type SyncJob = {
   status: string;
   result: Record<string, unknown>;
   started_at?: string;
+  finished_at?: string;
+  error_message?: string;
 };
 
 export type MarketBar = {

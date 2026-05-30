@@ -12,8 +12,10 @@ export default async function PortfolioPage() {
   const summary = await api.portfolioSummary(p.id);
   const trades = await api.portfolioTrades(p.id);
   let risk = null;
+  let agentCfg: Awaited<ReturnType<typeof api.agentConfig>> | null = null;
   try {
     risk = await api.riskDashboard(p.id);
+    agentCfg = await api.agentConfig();
   } catch {
     risk = null;
   }
@@ -21,7 +23,15 @@ export default async function PortfolioPage() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-bold">模拟组合 — {summary.name}</h1>
+        <div>
+          <h1 className="text-2xl font-bold">模拟组合 — {summary.name}</h1>
+          {agentCfg && (
+            <p className="text-xs text-gray-500">
+              Agent 模式：{agentCfg.agent_mode}
+              {agentCfg.llm_active ? ` · LLM ${agentCfg.llm_model}` : agentCfg.llm_configured ? "" : " · 未配置 API Key"}
+            </p>
+          )}
+        </div>
         <RebalanceButton portfolioId={p.id} />
       </div>
       <div className="grid gap-4 sm:grid-cols-3">

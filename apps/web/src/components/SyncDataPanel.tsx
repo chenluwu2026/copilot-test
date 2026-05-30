@@ -9,7 +9,22 @@ export function SyncDataPanel() {
   const [loading, setLoading] = useState<string | null>(null);
   const [msg, setMsg] = useState("");
 
-  async function run(kind: "quotes" | "filings" | "financials" | "all") {
+  async function pollJob(jobId: string) {
+    for (let i = 0; i < 60; i++) {
+      await new Promise((r) => setTimeout(r, 3000));
+      const j = await api.syncJob(jobId);
+      if (j.status !== "running") {
+        setMsg(`作业 ${j.status}: ${JSON.stringify(j.result || j.error_message).slice(0, 180)}`);
+        router.refresh();
+        return;
+      }
+      setMsg(`后台同步中… (${i + 1}/60)`);
+    }
+    setMsg("同步时间较长，请稍后在「最近同步作业」查看");
+    router.refresh();
+  }
+
+  async function run(kind: "quotes" | "filings" | "financials" | "all" | "all_async") {
     setLoading(kind);
     setMsg("");
     try {
@@ -17,7 +32,12 @@ export function SyncDataPanel() {
       if (kind === "quotes") res = await api.syncQuotes();
       else if (kind === "filings") res = await api.syncFilings();
       else if (kind === "financials") res = await api.syncFinancials();
-      else res = await api.syncAll();
+      else if (kind === "all_async") {
+        res = await api.syncAllAsync();
+        const jobId = res.job_id as string;
+        if (jobId) await pollJob(jobId);
+        return;
+      } else res = await api.syncAll();
       setMsg(JSON.stringify(res, null, 0).slice(0, 200));
       router.refresh();
     } catch (e) {
@@ -58,6 +78,13 @@ export function SyncDataPanel() {
           className="rounded bg-aims-trade px-3 py-2 text-sm text-white disabled:opacity-50"
         >
           {loading === "all" ? "同步中…" : "一键全量"}
+        </button>
+        <button
+          onClick={() => run("all_async")}
+          disabled={!!loading}
+          className="rounded border border-aims-trade px-3 py-2 text-sm text-aims-trade disabled:opacity-50"
+        >
+          {loading === "all_async" ? "后台同步…" : "后台全量"}
         </button>
       </div>
       {msg && <p className="text-xs text-gray-400 break-all">{msg}</p>}

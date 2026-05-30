@@ -19,6 +19,7 @@ from app.routers import (
     data,
 )
 from scripts.seed import run_seed
+from app.services.scheduler_service import start_scheduler, stop_scheduler
 
 
 @asynccontextmanager
@@ -26,7 +27,9 @@ async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     if settings.run_seed:
         run_seed()
+    start_scheduler()
     yield
+    stop_scheduler()
 
 
 app = FastAPI(title="AIMS API", version="0.1.0", lifespan=lifespan)
@@ -34,7 +37,10 @@ app = FastAPI(title="AIMS API", version="0.1.0", lifespan=lifespan)
 
 @app.middleware("http")
 async def optional_api_key(request: Request, call_next):
-    if settings.api_key and request.url.path not in ("/health", "/docs", "/openapi.json"):
+    exempt = request.url.path in ("/health", "/docs", "/openapi.json") or request.url.path.endswith(
+        "/data/sync/cron"
+    )
+    if settings.api_key and not exempt:
         key = request.headers.get("x-api-key")
         if key != settings.api_key:
             return JSONResponse(status_code=401, content={"detail": "Invalid API key"})

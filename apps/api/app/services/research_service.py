@@ -154,11 +154,49 @@ def create_research_view(
     return view
 
 
+def _generate_research_llm(db: Session, security: Security) -> ResearchView:
+    from app.services.llm.client import use_llm_agents, complete_json
+    from app.services.llm.prompts import RESEARCH_SYSTEM
+
+    if not use_llm_agents():
+        raise RuntimeError("LLM not active")
+    price = float(security.last_price or 100)
+    user = (
+        f"标的：{security.symbol} {security.name}，行业：{security.sector or '未知'}，"
+        f"现价约 {price} {security.currency}。请输出 research_view JSON。"
+    )
+    raw = complete_json(RESEARCH_SYSTEM, user)
+    fa = raw.get("fundamental_analysis") or {}
+    scenario = raw.get("scenario_analysis")
+    if scenario and "current_price" not in scenario:
+        scenario["current_price"] = price
+    rating = ResearchRating.hold
+    return create_research_view(
+        db,
+        security.id,
+        rating,
+        fa,
+        raw.get("investment_conclusion", f"{security.name}：LLM 研究草稿。"),
+        horizon=raw.get("horizon", "6-12个月"),
+        scenario_analysis=scenario,
+        valuation_snapshot={"source": "llm"},
+        agent_name="research_agent_llm",
+    )
+
+
 def generate_research_draft(db: Session, security_id: UUID) -> ResearchView:
-    """Research Agent 占位：基于行业模板生成可编辑草稿。"""
+    """Research Agent：LLM 或规则模板生成可编辑草稿。"""
     security = db.get(Security, security_id)
     if not security:
         raise ValueError("标的不存在")
+
+    from app.services.llm.client import use_llm_agents
+
+    if use_llm_agents():
+        try:
+            return _generate_research_llm(db, security)
+        except Exception:
+            pass
 
     sector = security.sector or "综合"
     name = security.name
