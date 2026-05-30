@@ -10,6 +10,7 @@ const links = [
   { href: "/decisions", label: "决策日志" },
   { href: "/research", label: "研究" },
   { href: "/events", label: "信息流" },
+  { href: "/data", label: "数据" },
   { href: "/review", label: "复盘" },
 ];
 

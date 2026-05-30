@@ -382,6 +382,95 @@ class ResearchView(Base):
     security: Mapped["Security"] = relationship()
 
 
+class BarInterval(str, enum.Enum):
+    d1 = "1d"
+
+
+class SyncJobType(str, enum.Enum):
+    quotes = "quotes"
+    filings = "filings"
+    financials = "financials"
+    all = "all"
+
+
+class SyncJobStatus(str, enum.Enum):
+    running = "running"
+    success = "success"
+    failed = "failed"
+
+
+class MarketBar(Base):
+    __tablename__ = "market_bars"
+    __table_args__ = (
+        UniqueConstraint("security_id", "bar_date", "interval", name="uq_market_bar"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=new_uuid)
+    security_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("securities.id"), nullable=False)
+    bar_date: Mapped[date] = mapped_column(Date, nullable=False)
+    interval: Mapped[BarInterval] = mapped_column(Enum(BarInterval), default=BarInterval.d1)
+    open: Mapped[Decimal] = mapped_column(Numeric(20, 6))
+    high: Mapped[Decimal] = mapped_column(Numeric(20, 6))
+    low: Mapped[Decimal] = mapped_column(Numeric(20, 6))
+    close: Mapped[Decimal] = mapped_column(Numeric(20, 6))
+    volume: Mapped[Decimal] = mapped_column(Numeric(20, 4), default=Decimal("0"))
+    turnover: Mapped[Decimal | None] = mapped_column(Numeric(20, 4))
+    turnover_rate: Mapped[Decimal | None] = mapped_column(Numeric(10, 4))
+
+    security: Mapped["Security"] = relationship()
+
+
+class Filing(Base):
+    __tablename__ = "filings"
+    __table_args__ = (
+        UniqueConstraint("security_id", "title", "published_at", name="uq_filing_title_date"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=new_uuid)
+    security_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("securities.id"), nullable=False)
+    filing_type: Mapped[str] = mapped_column(String(64), default="announcement")
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    published_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    source_url: Mapped[str | None] = mapped_column(Text)
+    raw_content: Mapped[str | None] = mapped_column(Text)
+    parsed_structured: Mapped[dict] = mapped_column(JSONType, default=dict)
+    structured_event_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    security: Mapped["Security"] = relationship()
+
+
+class FinancialReport(Base):
+    __tablename__ = "financial_reports"
+    __table_args__ = (
+        UniqueConstraint("security_id", "period_key", "report_type", name="uq_fin_report"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=new_uuid)
+    security_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("securities.id"), nullable=False)
+    period_key: Mapped[str] = mapped_column(String(16), nullable=False)
+    report_type: Mapped[str] = mapped_column(String(32), default="abstract")
+    metrics: Mapped[dict] = mapped_column(JSONType, default=dict)
+    raw_data: Mapped[dict] = mapped_column(JSONType, default=dict)
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    security: Mapped["Security"] = relationship()
+
+
+class DataSyncJob(Base):
+    __tablename__ = "data_sync_jobs"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=new_uuid)
+    job_type: Mapped[SyncJobType] = mapped_column(Enum(SyncJobType), nullable=False)
+    status: Mapped[SyncJobStatus] = mapped_column(Enum(SyncJobStatus), default=SyncJobStatus.running)
+    params: Mapped[dict] = mapped_column(JSONType, default=dict)
+    result: Mapped[dict] = mapped_column(JSONType, default=dict)
+    error_message: Mapped[str | None] = mapped_column(Text)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class AgentRunStatus(str, enum.Enum):
     running = "running"
     success = "success"

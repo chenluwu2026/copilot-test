@@ -56,3 +56,9 @@ cd apps/web && npm install && npm run dev
 - **研究页** → Factor Agent 因子得分
 - **复盘页** → 待复盘决策、行业归因、记忆库激活、Agent 运行记录、简化回测
 - 升级数据库：删除 `data/aims.db` 后重启 API
+
+### 行情 & 公告财报（AkShare）
+
+- **数据中心** `/data`：同步行情 / 公告 / 财报 / 一键全量
+- A 股日线、港股日线、巨潮/东财公告、财报摘要；重要公告自动进入信息流
+- 研究页展示真实 K 线与财报表格；`DATA_PROVIDER=mock` 可无网络降级

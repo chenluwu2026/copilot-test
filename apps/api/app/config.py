@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:3000"
     default_user_email: str = "demo@aims.local"
     schemas_dir: str = str(_REPO_ROOT / "schemas")
+    data_provider: str = "akshare"  # akshare | mock
+    quote_sync_days: int = 120
+    filing_sync_days: int = 90
 
     @property
     def cors_origin_list(self) -> list[str]:

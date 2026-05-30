@@ -1,11 +1,11 @@
-"""Factor Agent：基于现价与研究评级的简化因子得分（MVP）。"""
+"""Factor Agent：结合真实 K 线动量与研究评级。"""
 import hashlib
-from decimal import Decimal
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import ResearchRating, ResearchView, Security
+from app.services.market_data_service import compute_momentum_from_bars
 
 
 RATING_SCORE = {
@@ -40,7 +40,9 @@ def compute_factors(db: Session, security_ids: list) -> list[dict]:
         quality = 70 if sec.sector in ("食品饮料", "银行") else 55
         value = 65 if price < 100 else 45
         growth = RATING_SCORE.get(view.rating, 50) if view else 50
-        momentum = _pseudo_momentum(sec.symbol, price)
+        momentum = compute_momentum_from_bars(db, sid, window=20)
+        if momentum is None:
+            momentum = _pseudo_momentum(sec.symbol, price)
         crowding = 30 + (growth - 50) * 0.5
         composite = (momentum * 0.25 + value * 0.2 + quality * 0.25 + growth * 0.3)
         results.append(

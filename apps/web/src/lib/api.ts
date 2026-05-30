@@ -99,6 +99,36 @@ export const api = {
     fetchApi(`/review/decisions/${decisionId}/run`, { method: "POST" }),
   attribution: (portfolioId: string) => fetchApi<AttributionReport>(`/review/attribution/${portfolioId}`),
   backtest: (portfolioId: string) => fetchApi<BacktestRow[]>(`/review/backtest/${portfolioId}`),
+
+  syncQuotes: (body?: object) =>
+    fetchApi<Record<string, unknown>>("/data/sync/quotes", {
+      method: "POST",
+      body: JSON.stringify(body || {}),
+    }),
+  syncFilings: (body?: object) =>
+    fetchApi<Record<string, unknown>>("/data/sync/filings", {
+      method: "POST",
+      body: JSON.stringify(body || {}),
+    }),
+  syncFinancials: (body?: object) =>
+    fetchApi<Record<string, unknown>>("/data/sync/financials", {
+      method: "POST",
+      body: JSON.stringify(body || {}),
+    }),
+  syncAll: (body?: object) =>
+    fetchApi<Record<string, unknown>>("/data/sync/all", {
+      method: "POST",
+      body: JSON.stringify(body || {}),
+    }),
+  syncJobs: () => fetchApi<SyncJob[]>(`/data/sync/jobs`),
+  barsBySymbol: (symbol: string, days = 90) =>
+    fetchApi<MarketBar[]>(`/data/bars/symbol/${encodeURIComponent(symbol)}?days=${days}`),
+  filings: (securityId?: string, limit = 50) =>
+    fetchApi<FilingItem[]>(
+      `/data/filings${securityId ? `?security_id=${securityId}&limit=${limit}` : `?limit=${limit}`}`
+    ),
+  financialsBySymbol: (symbol: string) =>
+    fetchApi<FinancialsPayload>(`/data/financials/symbol/${encodeURIComponent(symbol)}`),
 };
 
 export type Portfolio = {
@@ -260,6 +290,40 @@ export type AttributionReport = {
 };
 
 export type BacktestRow = { decision_id: string; return_pct: number; summary?: string };
+
+export type SyncJob = {
+  id: string;
+  job_type: string;
+  status: string;
+  result: Record<string, unknown>;
+  started_at?: string;
+};
+
+export type MarketBar = {
+  bar_date: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+};
+
+export type FilingItem = {
+  id: string;
+  symbol?: string;
+  name?: string;
+  filing_type: string;
+  title: string;
+  published_at?: string;
+  source_url?: string;
+  structured_event_id?: string;
+};
+
+export type FinancialsPayload = {
+  symbol: string;
+  name: string;
+  reports: { period_key: string; metrics: Record<string, number | null> }[];
+};
 
 export type ResearchViewDetail = {
   id: string;

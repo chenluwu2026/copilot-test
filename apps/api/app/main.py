@@ -15,6 +15,7 @@ from app.routers import (
     review,
     securities,
     watchlists,
+    data,
 )
 from scripts.seed import run_seed
 
@@ -45,6 +46,7 @@ app.include_router(research.router, prefix=prefix)
 app.include_router(agents.router, prefix=prefix)
 app.include_router(memory.router, prefix=prefix)
 app.include_router(review.router, prefix=prefix)
+app.include_router(data.router, prefix=prefix)
 
 
 @app.get("/health")

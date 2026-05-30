@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Card } from "@/components/Card";
 import { StructuredEventCard } from "@/components/StructuredEventCard";
 import { GenerateResearchButton } from "@/components/GenerateResearchButton";
+import { PriceChart } from "@/components/PriceChart";
 import { api } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
@@ -25,6 +26,13 @@ const ratingLabel: Record<string, string> = {
   sell: "卖出",
   neutral: "中性",
 };
+
+function formatMetric(v: number | null | undefined): string {
+  if (v == null) return "—";
+  if (Math.abs(v) >= 1e8) return `${(v / 1e8).toFixed(2)}亿`;
+  if (Math.abs(v) >= 1e4) return `${(v / 1e4).toFixed(2)}万`;
+  return v.toFixed(2);
+}
 
 const scenarioLabel: Record<string, string> = {
   optimistic: "乐观",
@@ -60,6 +68,15 @@ export default async function ResearchDetailPage({
   const { security, latest, history, related_events } = data;
   const fa = latest.fundamental_analysis;
   const scenarios = latest.scenario_analysis?.scenarios || [];
+
+  let bars: Awaited<ReturnType<typeof api.barsBySymbol>> = [];
+  let financials: Awaited<ReturnType<typeof api.financialsBySymbol>> | null = null;
+  try {
+    bars = await api.barsBySymbol(symbol, 120);
+    financials = await api.financialsBySymbol(symbol);
+  } catch {
+    bars = [];
+  }
 
   let factorRow = null;
   try {
@@ -99,6 +116,35 @@ export default async function ResearchDetailPage({
       <Card title="投资结论">
         <p className="text-sm leading-relaxed">{latest.investment_conclusion}</p>
       </Card>
+
+      <Card title="行情走势（真实 K 线）">
+        <PriceChart data={bars} />
+      </Card>
+
+      {financials && financials.reports.length > 0 && (
+        <Card title="财报摘要">
+          <table className="w-full text-left text-sm">
+            <thead className="text-gray-400">
+              <tr>
+                <th>报告期</th>
+                <th>归母净利润</th>
+                <th>营业总收入</th>
+                <th>ROE</th>
+              </tr>
+            </thead>
+            <tbody>
+              {financials.reports.slice(0, 4).map((r) => (
+                <tr key={r.period_key} className="border-t border-aims-border">
+                  <td className="py-2">{r.period_key}</td>
+                  <td>{formatMetric(r.metrics["归母净利润"])}</td>
+                  <td>{formatMetric(r.metrics["营业总收入"])}</td>
+                  <td>{formatMetric(r.metrics["净资产收益率"] || r.metrics["ROE"])}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-2">
         {sections.map(({ key, label }) => (
