@@ -16,7 +16,19 @@ class Settings(BaseSettings):
     data_provider: str = "akshare"  # akshare | mock
     quote_sync_days: int = 120
     filing_sync_days: int = 90
+    data_stale_days: int = 3
+    data_sync_cron_enabled: bool = False
+    data_sync_cron_time: str = "18:30"
+    data_sync_cron_tz: str = "Asia/Shanghai"
+    cron_secret: str | None = None
     run_seed: bool = False
+    # Agent：rule=规则引擎 | llm=大模型 CIO（需 OPENAI_API_KEY）
+    agent_mode: str = "rule"
+    openai_api_key: str | None = None
+    openai_base_url: str | None = None
+    llm_model: str = "gpt-4o-mini"
+    llm_timeout_s: int = 120
+    structuring_mode: str = "rule"  # rule | llm
     # 可选：简单保护公开 API（个人部署建议设置）
     api_key: str | None = None
     # Railway 等分域名部署：放行 https://*.up.railway.app

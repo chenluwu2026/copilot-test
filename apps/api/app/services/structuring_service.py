@@ -65,11 +65,36 @@ def detect_dimensions(text: str) -> list[str]:
     return dims or ["综合"]
 
 
+def _structure_llm(title: str, body: str, securities: list[Security]) -> dict:
+    from app.services.llm.client import complete_json, use_llm_agents
+    if not use_llm_agents():
+        raise RuntimeError("LLM not active")
+    # 复用 CIO system 不合适，用简短 structuring prompt
+    system = """将新闻结构化为 JSON，字段同 structured_event schema：
+companies, event_type, impact_direction(positive|negative|neutral|mixed),
+impact_dimensions[], confidence(low|medium|high), time_sensitivity(low|medium|high),
+related_securities[], follow_ups[], summary"""
+    names = ", ".join(f"{s.symbol} {s.name}" for s in securities)
+    user = f"标题：{title}\n正文：{(body or '')[:2000]}\n关联标的：{names}"
+    raw = complete_json(system, user)
+    jsonschema.validate(instance=raw, schema=_load_schema("structured_event.schema.json"))
+    return raw
+
+
 def structure_from_text(
     title: str,
     body: str,
     securities: list[Security],
 ) -> dict:
+    if settings.structuring_mode == "llm":
+        from app.services.llm.client import use_llm_agents
+
+        if use_llm_agents():
+            try:
+                return _structure_llm(title, body, securities)
+            except Exception:
+                pass
+
     text = f"{title} {body or ''}"
     event_type = detect_event_type(text)
     impact = detect_impact(text)

@@ -79,10 +79,11 @@ export default async function ReviewPage() {
       <Card title="Agent 运行记录">
         <ul className="space-y-2 text-sm">
           {runs.map((r) => (
-            <li key={r.id} className="flex justify-between border-b border-aims-border pb-2">
-              <span>
+            <li key={r.id} className="flex flex-wrap justify-between gap-2 border-b border-aims-border pb-2">
+              <Link href={`/agents/${r.id}`} className="text-aims-accent">
                 {r.workflow_name} · {r.status} · {r.started_at?.slice(0, 16)}
-              </span>
+                {r.agent_mode ? ` · ${r.agent_mode}` : ""}
+              </Link>
               <span className="text-gray-400">{r.decision_ids?.length || 0} 条决策</span>
             </li>
           ))}

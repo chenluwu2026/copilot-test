@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import ResearchRating, ResearchView, Security
+from app.services.data_quality_service import symbol_has_fresh_bars
 from app.services.market_data_service import compute_momentum_from_bars
 
 
@@ -41,15 +42,23 @@ def compute_factors(db: Session, security_ids: list) -> list[dict]:
         value = 65 if price < 100 else 45
         growth = RATING_SCORE.get(view.rating, 50) if view else 50
         momentum = compute_momentum_from_bars(db, sid, window=20)
+        has_real_bars = momentum is not None
         if momentum is None:
             momentum = _pseudo_momentum(sec.symbol, price)
+        data_complete = has_real_bars and symbol_has_fresh_bars(db, sid)
+        warnings = []
+        if not data_complete:
+            warnings.append("行情数据不完整或过期，动量为估算值")
         crowding = 30 + (growth - 50) * 0.5
+        if crowding > 60:
+            warnings.append("拥挤度偏高，注意回调")
         composite = (momentum * 0.25 + value * 0.2 + quality * 0.25 + growth * 0.3)
         results.append(
             {
                 "security_id": str(sid),
                 "symbol": sec.symbol,
                 "name": sec.name,
+                "data_complete": data_complete,
                 "factors": {
                     "momentum": round(momentum, 1),
                     "value": round(value, 1),
@@ -58,9 +67,7 @@ def compute_factors(db: Session, security_ids: list) -> list[dict]:
                     "crowding": round(crowding, 1),
                     "composite": round(composite, 1),
                 },
-                "warnings": (
-                    ["拥挤度偏高，注意回调"] if crowding > 60 else []
-                ),
+                "warnings": warnings,
             }
         )
     return sorted(results, key=lambda x: x["factors"]["composite"], reverse=True)

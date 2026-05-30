@@ -87,8 +87,13 @@ cd apps/web && npm install && npm run dev
 - **复盘页** → 待复盘决策、行业归因、记忆库激活、Agent 运行记录、简化回测
 - 升级数据库：删除 `data/aims.db` 后重启 API
 
+### 数据（方案 B）与 LLM Agent（方案 A）
+
+- **数据中心** `/data`：质量看板、同步作业、后台全量、定时 Cron（见 [`docs/DATA_AND_AGENTS.md`](./docs/DATA_AND_AGENTS.md)）
+- **LLM CIO**：`AGENT_MODE=llm` + `OPENAI_API_KEY`；失败自动回退规则引擎
+
 ### 行情 & 公告财报（AkShare）
 
-- **数据中心** `/data`：同步行情 / 公告 / 财报 / 一键全量
+- **数据中心** `/data`：同步行情 / 公告 / 财报 / 一键全量 / 后台全量
 - A 股日线、港股日线、巨潮/东财公告、财报摘要；重要公告自动进入信息流
 - 研究页展示真实 K 线与财报表格；`DATA_PROVIDER=mock` 可无网络降级
