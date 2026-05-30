@@ -1,0 +1,64 @@
+# 一键线上体验（个人自用推荐）
+# 用法: docker compose -f docker-compose.prod.yml up -d --build
+# 浏览器打开 http://localhost:8080
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: aims
+      POSTGRES_PASSWORD: aims
+      POSTGRES_DB: aims
+    volumes:
+      - aims_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aims -d aims"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    environment:
+      DATABASE_URL: postgresql://aims:aims@db:5432/aims
+      CORS_ORIGINS: http://localhost:8080,http://127.0.0.1:8080
+      SCHEMAS_DIR: /schemas
+      RUN_SEED: "true"
+      DATA_PROVIDER: akshare
+      # API_KEY: "your-secret"  # 启用后前端需设 NEXT_PUBLIC_API_KEY（见 DEPLOY.md）
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+      args:
+        NEXT_PUBLIC_API_URL: ""
+    environment:
+      PORT: "3000"
+      # SSR 走容器内网访问 API（与浏览器同源走 Caddy 时留空）
+      API_URL: http://api:8000
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: "8080"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+    depends_on:
+      - api
+      - web
+    restart: unless-stopped
+
+volumes:
+  aims_pg:

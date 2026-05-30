@@ -1,9 +1,25 @@
-const BASE = "/api/v1";
+/** 生产环境：NEXT_PUBLIC_API_URL 指向独立 API；同源部署（Caddy）则走 /api/v1 */
+export function getApiBase(): string {
+  const pub = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
+  if (pub) return `${pub}/api/v1`;
+  const server = process.env.API_URL?.replace(/\/$/, "");
+  if (typeof window === "undefined" && server) return `${server}/api/v1`;
+  return "/api/v1";
+}
+
+function apiHeaders(init?: RequestInit): HeadersInit {
+  const key = process.env.NEXT_PUBLIC_API_KEY;
+  return {
+    "Content-Type": "application/json",
+    ...(key ? { "X-API-Key": key } : {}),
+    ...init?.headers,
+  };
+}
 
 async function fetchApi<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await fetch(`${getApiBase()}${path}`, {
     ...init,
-    headers: { "Content-Type": "application/json", ...init?.headers },
+    headers: apiHeaders(init),
     cache: "no-store",
   });
   if (!res.ok) {

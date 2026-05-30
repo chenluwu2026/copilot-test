@@ -1,7 +1,8 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.config import settings
 from app.database import Base, engine
@@ -23,11 +24,23 @@ from scripts.seed import run_seed
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
-    run_seed()
+    if settings.run_seed:
+        run_seed()
     yield
 
 
 app = FastAPI(title="AIMS API", version="0.1.0", lifespan=lifespan)
+
+
+@app.middleware("http")
+async def optional_api_key(request: Request, call_next):
+    if settings.api_key and request.url.path not in ("/health", "/docs", "/openapi.json"):
+        key = request.headers.get("x-api-key")
+        if key != settings.api_key:
+            return JSONResponse(status_code=401, content={"detail": "Invalid API key"})
+    return await call_next(request)
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origin_list,

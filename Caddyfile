@@ -1,0 +1,16 @@
+# 单域名：/api/v1 → 后端，其余 → Next.js
+:{$PORT:8080} {
+	encode gzip
+
+	handle /api/v1* {
+		reverse_proxy api:8000
+	}
+
+	handle /health {
+		reverse_proxy api:8000
+	}
+
+	handle {
+		reverse_proxy web:3000
+	}
+}

@@ -1,0 +1,11 @@
+# Railway 多服务说明：在 Dashboard 分别为 api / web 创建服务并指定 Dockerfile
+# 见 docs/DEPLOY.md
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile.api"
+
+[deploy]
+healthcheckPath = "/health"
+healthcheckTimeout = 120
+restartPolicyType = "ON_FAILURE"

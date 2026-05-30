@@ -36,6 +36,19 @@ cd preview && python3 -m http.server 8080
 
 或直接打开仓库内文件 `preview/aims-preview.html`。
 
+GitHub Pages 静态预览（无 API 交互）：https://chenluwu2026.github.io/copilot-test/
+
+## 线上部署（完整产品 · 推荐）
+
+个人 VPS / 本机 Docker 一键启动（组合、决策、研究、数据同步均可交互）：
+
+```bash
+docker compose -f docker-compose.prod.yml up -d --build
+# 或: make prod
+```
+
+浏览器打开 **http://localhost:8080**（服务器则换成公网 IP）。详细说明见 [`docs/DEPLOY.md`](./docs/DEPLOY.md)（含 Railway 免运维方案）。
+
 ## 本地运行（Phase 1 MVP）
 
 ```bash
