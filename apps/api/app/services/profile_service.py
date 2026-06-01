@@ -18,6 +18,8 @@ DEFAULT_INVESTMENT_PROFILE: dict = {
     "forbidden_sectors": [],
     "forbidden_symbols": [],
     "research_max_age_days": 30,
+    "review_due_days": 30,
+    "review_material_move_pct": 8,
     "notes": "",
 }
 

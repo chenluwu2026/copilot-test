@@ -23,6 +23,8 @@ class InvestmentProfilePatch(BaseModel):
     forbidden_sectors: list[str] | None = None
     forbidden_symbols: list[str] | None = None
     research_max_age_days: int | None = Field(None, ge=1, le=365)
+    review_due_days: int | None = Field(None, ge=1, le=365)
+    review_material_move_pct: float | None = Field(None, ge=1, le=100)
     notes: str | None = None
 
 

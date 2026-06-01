@@ -107,6 +107,10 @@ export const api = {
   activateMemory: (id: string) =>
     fetchApi(`/memory/${id}/activate`, { method: "POST" }),
 
+  reviewSummary: (portfolioId: string) =>
+    fetchApi<ReviewSummary>(`/review/summary?portfolio_id=${portfolioId}`),
+  pendingMemories: (portfolioId: string) =>
+    fetchApi<PendingMemoryDecision[]>(`/review/pending-memories?portfolio_id=${portfolioId}`),
   openDecisions: (portfolioId?: string) =>
     fetchApi<OpenDecision[]>(
       `/review/open-decisions${portfolioId ? `?portfolio_id=${portfolioId}` : ""}`
@@ -341,6 +345,8 @@ export type InvestmentProfile = {
   forbidden_sectors: string[];
   forbidden_symbols: string[];
   research_max_age_days: number;
+  review_due_days: number;
+  review_material_move_pct: number;
   notes: string;
 };
 
@@ -376,6 +382,25 @@ export type MemoryItem = {
   pending: boolean;
 };
 
+export type ReviewSummary = {
+  portfolio_id: string;
+  open_count: number;
+  due_count: number;
+  overdue_count: number;
+  pending_memory_count: number;
+  review_due_days: number;
+};
+
+export type PendingMemoryDecision = {
+  decision_id: string;
+  symbol: string;
+  name: string;
+  action: string;
+  return_pct: number;
+  outcome_summary?: string;
+  pending_memory_id?: string | null;
+};
+
 export type OpenDecision = {
   decision_id: string;
   symbol: string;
@@ -386,6 +411,13 @@ export type OpenDecision = {
   entry_price?: number;
   exit_price?: number;
   has_outcome?: boolean;
+  executed_at?: string;
+  days_since_execution?: number | null;
+  review_due?: boolean;
+  review_due_days?: number;
+  material_move?: boolean;
+  urgency?: "overdue" | "due" | "ok" | "unknown";
+  pending_memory_id?: string | null;
 };
 
 export type AttributionReport = {

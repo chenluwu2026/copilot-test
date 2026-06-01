@@ -27,6 +27,8 @@ export function InvestmentProfileForm() {
         forbidden_sectors: profile.forbidden_sectors,
         forbidden_symbols: profile.forbidden_symbols,
         research_max_age_days: profile.research_max_age_days,
+        review_due_days: profile.review_due_days,
+        review_material_move_pct: profile.review_material_move_pct,
         notes: profile.notes,
       });
       setProfile(res.investment_profile);
@@ -129,6 +131,34 @@ export function InvestmentProfileForm() {
               setProfile({
                 ...profile,
                 research_max_age_days: Number(e.target.value),
+              })
+            }
+          />
+        </div>
+        <div>
+          <label className="text-gray-400">复盘提醒周期（天）</label>
+          <input
+            type="number"
+            className="mt-1 w-full rounded border border-aims-border bg-aims-bg px-3 py-2"
+            value={profile.review_due_days}
+            onChange={(e) =>
+              setProfile({
+                ...profile,
+                review_due_days: Number(e.target.value),
+              })
+            }
+          />
+        </div>
+        <div>
+          <label className="text-gray-400">重大波动阈值（%）</label>
+          <input
+            type="number"
+            className="mt-1 w-full rounded border border-aims-border bg-aims-bg px-3 py-2"
+            value={profile.review_material_move_pct}
+            onChange={(e) =>
+              setProfile({
+                ...profile,
+                review_material_move_pct: Number(e.target.value),
               })
             }
           />

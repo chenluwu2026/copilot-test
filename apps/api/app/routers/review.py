@@ -5,13 +5,19 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.services.profile_service import get_investment_profile
+from app.services.review_reminder_service import (
+    list_open_decisions_enriched,
+    list_pending_memory_promotions,
+    promote_or_activate_memory,
+    review_summary,
+)
 from app.services.review_service import (
     attribution_report,
     backtest_decisions,
-    list_open_decisions,
-    promote_outcome_to_memory,
     review_decision,
 )
+from app.services.user_context import get_default_user
 
 router = APIRouter(prefix="/review", tags=["review"])
 
@@ -21,9 +27,23 @@ class PromoteMemoryBody(BaseModel):
     activate: bool = False
 
 
+@router.get("/summary")
+def summary(portfolio_id: UUID, db: Session = Depends(get_db)):
+    user = get_default_user(db)
+    profile = get_investment_profile(user)
+    return review_summary(db, portfolio_id, profile)
+
+
+@router.get("/pending-memories")
+def pending_memories(portfolio_id: UUID, db: Session = Depends(get_db)):
+    return list_pending_memory_promotions(db, portfolio_id)
+
+
 @router.get("/open-decisions")
 def open_decisions(portfolio_id: UUID | None = None, db: Session = Depends(get_db)):
-    return list_open_decisions(db, portfolio_id)
+    user = get_default_user(db)
+    profile = get_investment_profile(user)
+    return list_open_decisions_enriched(db, portfolio_id, profile)
 
 
 @router.post("/decisions/{decision_id}/run")
@@ -49,7 +69,7 @@ def promote_memory(
     decision_id: UUID, body: PromoteMemoryBody, db: Session = Depends(get_db)
 ):
     try:
-        return promote_outcome_to_memory(db, decision_id, body.title, body.activate)
+        return promote_or_activate_memory(db, decision_id, body.title, body.activate)
     except ValueError as e:
         raise HTTPException(400, str(e)) from e
 
