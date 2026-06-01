@@ -93,7 +93,7 @@ def list_open_decisions(db: Session, portfolio_id: UUID | None = None) -> list:
     )
     if portfolio_id:
         q = q.where(Decision.portfolio_id == portfolio_id)
-    decisions = db.scalars(q).all()
+    decisions = db.scalars(q).unique().all()
     result = []
     for d in decisions:
         outcome = db.scalar(

@@ -11,6 +11,8 @@ from app.models import DecisionAction, ResearchRating, ResearchView, Security
 from app.services import decision_service as ds
 from app.services.llm.client import complete_json, use_llm_agents
 from app.services.llm.prompts import CIO_SYSTEM
+from app.services.profile_service import user_is_forbidden
+from app.services.research_gate_service import gate_action_for_research
 
 logger = logging.getLogger(__name__)
 
@@ -32,17 +34,21 @@ def generate_cio_decisions(
     risk_result: dict,
     memories: list,
     trace: dict,
+    profile: dict | None = None,
 ) -> tuple[list[str], list[dict], str]:
+    profile = profile or {}
     """
     返回 (decision_ids, cio_outputs, mode_used)。
     """
     if use_llm_agents():
         try:
-            return _generate_llm(db, portfolio_id, proposed, current_map, risk_result, memories, trace)
+            return _generate_llm(
+                db, portfolio_id, proposed, current_map, risk_result, memories, trace, profile
+            )
         except Exception as e:
             logger.warning("CIO LLM failed, fallback to rule: %s", e)
             trace["cio_fallback"] = str(e)
-    return _generate_rule(db, portfolio_id, proposed, current_map, risk_result, memories)
+    return _generate_rule(db, portfolio_id, proposed, current_map, risk_result, memories, profile)
 
 
 def _generate_rule(
@@ -52,6 +58,7 @@ def _generate_rule(
     current_map: dict[str, float],
     risk_result: dict,
     memories: list,
+    profile: dict,
 ) -> tuple[list[str], list[dict], str]:
     decision_ids = []
     cio_outputs = []
@@ -84,12 +91,23 @@ def _generate_rule(
             action = DecisionAction.watch
             target = current
 
+        if user_is_forbidden(profile, symbol=symbol, sector=sec.sector):
+            action = DecisionAction.watch
+            target = current
+
+        gated_action, gate_reason = gate_action_for_research(db, sec.id, action, profile)
+        if gated_action != action:
+            action = gated_action
+            target = current
+
         reason = (
             f"[CIO 规则引擎] {pw.get('rationale', '')}。"
             f"目标权重 {target:.1f}%（当前 {current:.1f}%）。"
         )
         if memories:
             reason += f" 参考记忆：{memories[0].title}。"
+        if gate_reason:
+            reason += f" [研究闸门] {gate_reason}。"
 
         core_vars = []
         if view:
@@ -146,11 +164,13 @@ def _generate_llm(
     risk_result: dict,
     memories: list,
     trace: dict,
+    profile: dict,
 ) -> tuple[list[str], list[dict], str]:
     context = {
         "proposed_weights": proposed,
         "current_weights": current_map,
         "risk": risk_result,
+        "investment_profile": profile,
         "memories": [{"title": m.title, "content": m.content[:200]} for m in memories],
     }
     user = json.dumps(context, ensure_ascii=False, indent=2)
@@ -175,6 +195,17 @@ def _generate_llm(
         action = DecisionAction(item["action"])
         current = float(item.get("current_weight_pct", current_map.get(symbol, 0)))
         target = float(item["target_weight_pct"])
+        if user_is_forbidden(profile, symbol=symbol, sector=sec.sector):
+            action = DecisionAction.watch
+            target = current
+        gated_action, gate_reason = gate_action_for_research(db, sec.id, action, profile)
+        if gated_action != action:
+            action = gated_action
+            target = current
+            item = dict(item)
+            item["decision_reason"] = (
+                item.get("decision_reason", "") + f" [研究闸门] {gate_reason}"
+            )
         decision = _create_from_summary(
             db,
             portfolio_id,

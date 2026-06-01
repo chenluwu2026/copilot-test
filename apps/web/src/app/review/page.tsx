@@ -5,6 +5,8 @@ import { BacktestChart } from "@/components/BacktestChart";
 import { BacktestList } from "@/components/BacktestList";
 import { MemoryPanel } from "@/components/MemoryPanel";
 import { ReviewBoard } from "@/components/ReviewBoard";
+import { ReviewPendingMemoryPanel } from "@/components/ReviewPendingMemoryPanel";
+import { ReviewSummaryBanner } from "@/components/ReviewSummaryBanner";
 import { api } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
@@ -18,6 +20,8 @@ export default async function ReviewPage() {
   let backtest: Awaited<ReturnType<typeof api.backtest>> = [];
   let memories: Awaited<ReturnType<typeof api.memories>> = [];
   let runs: Awaited<ReturnType<typeof api.agentRuns>> = [];
+  let reviewSummary: Awaited<ReturnType<typeof api.reviewSummary>> | null = null;
+  let pendingMemories: Awaited<ReturnType<typeof api.pendingMemories>> = [];
 
   if (pid) {
     try {
@@ -27,6 +31,8 @@ export default async function ReviewPage() {
       reportMd = "";
     }
     open = await api.openDecisions(pid);
+    reviewSummary = await api.reviewSummary(pid);
+    pendingMemories = await api.pendingMemories(pid);
     attribution = await api.attribution(pid);
     backtest = await api.backtest(pid);
     memories = await api.memories();
@@ -37,8 +43,17 @@ export default async function ReviewPage() {
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">复盘与进化</h1>
 
+      <ReviewSummaryBanner summary={reviewSummary} />
+
       <Card title="待复盘决策 (Review Agent)">
         <ReviewBoard items={open} />
+      </Card>
+
+      <Card title="已复盘 · 待激活记忆">
+        <p className="mb-3 text-xs text-gray-500">
+          激活后的教训会在下次「生成 AI 调仓建议」时注入 CIO（可在 Agent 运行记录的 trace.memories 查看）。
+        </p>
+        <ReviewPendingMemoryPanel items={pendingMemories} />
       </Card>
 
       <div className="grid gap-4 lg:grid-cols-2">

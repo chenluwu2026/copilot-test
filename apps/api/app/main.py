@@ -8,6 +8,7 @@ from app.config import settings
 from app.database import Base, engine
 from app.routers import (
     agents,
+    data,
     decisions,
     events,
     memory,
@@ -15,8 +16,8 @@ from app.routers import (
     research,
     review,
     securities,
+    users,
     watchlists,
-    data,
 )
 from scripts.seed import run_seed
 from app.services.scheduler_service import start_scheduler, stop_scheduler
@@ -68,6 +69,7 @@ app.include_router(agents.router, prefix=prefix)
 app.include_router(memory.router, prefix=prefix)
 app.include_router(review.router, prefix=prefix)
 app.include_router(data.router, prefix=prefix)
+app.include_router(users.router, prefix=prefix)
 
 
 @app.get("/health")

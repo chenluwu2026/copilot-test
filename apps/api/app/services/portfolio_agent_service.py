@@ -6,7 +6,8 @@ from sqlalchemy.orm import Session
 
 from app.models import ResearchRating, ResearchView, Security, Watchlist, WatchlistItem
 from app.services.factor_service import compute_factors
-from app.services.memory_service import search_memory
+from app.services.memory_service import search_memory_context
+from app.services.profile_service import user_is_forbidden
 
 
 RATING_TARGET_WEIGHT = {
@@ -24,6 +25,7 @@ def propose_weights(
     portfolio_id: UUID,
     user_id: UUID,
     factor_scores: list[dict],
+    profile: dict | None = None,
 ) -> dict:
     """对股票池+持仓标的生成 proposed_weights。"""
     from app.models import Position
@@ -42,14 +44,41 @@ def propose_weights(
 
     universe = position_ids | watchlist_ids
     factor_map = {f["security_id"]: f for f in factor_scores}
+    profile = profile or {}
 
-    memories = search_memory(db, "教训", limit=5)
+    symbol_list: list[str] = []
+    sector_list: list[str] = []
+    for sid in universe:
+        sec = db.get(Security, sid)
+        if sec:
+            symbol_list.append(sec.symbol)
+            if sec.sector:
+                sector_list.append(sec.sector)
+
+    memories = search_memory_context(
+        db,
+        symbols=symbol_list,
+        sectors=sector_list,
+        keywords=["教训", "anti_pattern"],
+        limit=5,
+    )
     anti_patterns = [m.content for m in memories if m.memory_type.value == "anti_pattern"]
 
     proposed = []
     for sid in universe:
         sec = db.get(Security, sid)
         if not sec:
+            continue
+        if user_is_forbidden(profile, symbol=sec.symbol, sector=sec.sector):
+            proposed.append(
+                {
+                    "security_id": str(sid),
+                    "symbol": sec.symbol,
+                    "name": sec.name,
+                    "weight_pct": 0.0,
+                    "rationale": "投资画像禁止项",
+                }
+            )
             continue
         view = db.scalar(
             select(ResearchView)

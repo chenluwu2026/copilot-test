@@ -2,7 +2,11 @@ from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-_REPO_ROOT = Path(__file__).resolve().parents[3]
+_config_file = Path(__file__).resolve()
+_REPO_ROOT = next(
+    (p for p in _config_file.parents if (p / "schemas").exists()),
+    _config_file.parents[1],
+)
 
 
 class Settings(BaseSettings):
