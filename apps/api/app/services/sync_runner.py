@@ -42,6 +42,18 @@ def _run_sync_all_job(job_id: UUID, security_ids: list[UUID] | None, days_q: int
             post_sync["daily_report_id"] = str(report.id)
         if post_sync:
             results["post_sync"] = post_sync
+        if pid and settings.rebalance_cron_chain_after_sync:
+            from app.services.orchestrator import run_rebalance_workflow
+
+            try:
+                run = run_rebalance_workflow(db, pid, trigger="sync_chain")
+                results["rebalance_chain"] = {
+                    "run_id": str(run.id),
+                    "decision_ids": (run.output or {}).get("decision_ids", []),
+                }
+            except Exception as chain_err:
+                logger.warning("rebalance chain after sync failed: %s", chain_err)
+                results["rebalance_chain_error"] = str(chain_err)
         job.status = SyncJobStatus.success
         job.result = results
     except Exception as e:

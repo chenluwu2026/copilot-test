@@ -78,9 +78,12 @@ def create_decision(
     holding_period: str | None = None,
     cio_summary: dict | None = None,
     created_by_agent: str = "human",
+    evidence_meta: dict | None = None,
 ) -> Decision:
     if cio_summary:
         validate_decision_payload(cio_summary)
+        if evidence_meta:
+            cio_summary = {**cio_summary, **evidence_meta}
 
     delta = target_weight_pct - current_weight_pct
     decision = Decision(

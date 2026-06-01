@@ -32,6 +32,8 @@ def _decision_to_dict(d) -> dict:
         "main_risks": d.main_risks,
         "review_conditions": d.review_conditions,
         "cio_summary": d.cio_summary,
+        "evidence_grade": (d.cio_summary or {}).get("evidence_grade"),
+        "evidence_score": (d.cio_summary or {}).get("evidence_score"),
         "created_by_agent": d.created_by_agent,
         "created_at": d.created_at.isoformat() if d.created_at else None,
         "executed_at": d.executed_at.isoformat() if d.executed_at else None,

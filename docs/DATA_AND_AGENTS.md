@@ -77,3 +77,46 @@ STRUCTURING_MODE=llm   # 新闻结构化也用 LLM（可选）
 ### 成本提示
 
 每次调仓会对多个标的调用一次 JSON 模式 LLM；个人使用建议 `gpt-4o-mini` 或国产兼容端点。
+
+---
+
+## 真实 AI 决策（证据卷宗 + CIO）
+
+### 能力概览
+
+| 环节 | 说明 |
+|------|------|
+| **Decision Dossier** | 每标的组装研究/估值/因子/事件/财报/记忆/闸门 |
+| **Valuation Agent** | 调仓前更新三情景 `scenario_analysis`（规则或 LLM） |
+| **Research 刷新** | `CIO_REFRESH_RESEARCH=true` 时刷新过期 agent 草稿（不覆盖人工定稿） |
+| **Portfolio LLM** | `AGENT_MODE=llm` 时权重草案可走模型，失败回退评级表 |
+| **CIO LLM** | 基于 dossier 生成决策并写入 `decision_references` |
+| **证据分** | 收件箱 A/B/C 徽章，低分草案优先展示 |
+
+### 环境变量
+
+```env
+AGENT_MODE=llm
+OPENAI_API_KEY=sk-...
+LLM_MODEL=gpt-4o-mini
+CIO_DECISION_MODE=batch          # batch | per_symbol
+CIO_REFRESH_RESEARCH=false
+CIO_MAX_SYMBOLS=12
+REBALANCE_CRON_CHAIN_AFTER_SYNC=false   # 全量同步成功后自动跑调仓草案
+```
+
+### 成本参考（约 10 标的）
+
+| 模式 | LLM 次数 | 质量 |
+|------|----------|------|
+| `per_symbol` CIO | ~10 | 高 |
+| `batch` CIO | 1–2 | 中 |
+| `rule` | 0 | 演示 |
+
+推荐日常：`batch` Portfolio（1 次）+ `per_symbol` CIO（≤8），或全程 `batch` 省成本。
+
+### 验收路径
+
+1. 组合页 **生成 AI 调仓建议** → Agent 运行 `trace.dossiers` 有摘要  
+2. 决策详情 **溯源** 面板可见卷宗摘要与证据等级  
+3. 收件箱按证据 C→A 排序，Dashboard **事件复审** 展示 24h 内重大事件

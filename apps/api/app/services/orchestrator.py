@@ -1,4 +1,4 @@
-"""CIO 调仓工作流编排（Phase 3）。"""
+"""CIO 调仓工作流编排（证据驱动）。"""
 from datetime import datetime, timezone
 from uuid import UUID
 
@@ -8,13 +8,20 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.models import AgentRun, AgentRunStatus, Position, Security, Watchlist, WatchlistItem
 from app.services.cio_agent_service import generate_cio_decisions
+from app.services.decision_dossier_service import (
+    build_dossiers_for_universe,
+    dossier_summary_for_trace,
+    load_strategy_rules_text,
+)
 from app.services.factor_service import compute_factors
 from app.services.memory_service import search_memory_context
 from app.services.portfolio_agent_service import propose_weights
 from app.services.portfolio_service import get_portfolio_summary
 from app.services.profile_service import get_investment_profile
+from app.services.research_refresh_service import refresh_stale_research
 from app.services.risk_service import check_risk
 from app.services.user_context import get_default_user
+from app.services.valuation_agent_service import run_valuation_agent
 
 
 def run_rebalance_workflow(db: Session, portfolio_id: UUID, trigger: str = "manual") -> AgentRun:
@@ -26,6 +33,7 @@ def run_rebalance_workflow(db: Session, portfolio_id: UUID, trigger: str = "manu
         input_context={
             "portfolio_id": str(portfolio_id),
             "agent_mode": settings.agent_mode,
+            "cio_decision_mode": settings.cio_decision_mode,
         },
     )
     db.add(run)
@@ -36,6 +44,9 @@ def run_rebalance_workflow(db: Session, portfolio_id: UUID, trigger: str = "manu
         user = get_default_user(db)
         profile = get_investment_profile(user)
         trace["investment_profile"] = profile
+        strategy_rules = load_strategy_rules_text(db)
+        trace["strategy_rules_count"] = len(strategy_rules)
+
         summary = get_portfolio_summary(db, portfolio_id)
         current_map = {p["symbol"]: p["weight_pct"] for p in summary["positions"]}
 
@@ -48,10 +59,21 @@ def run_rebalance_workflow(db: Session, portfolio_id: UUID, trigger: str = "manu
                 if item.security_id not in universe_ids:
                     universe_ids.append(item.security_id)
 
+        if settings.cio_refresh_research:
+            refreshed = refresh_stale_research(db, universe_ids, profile)
+            trace["steps"].append(
+                {"agent": "research_refresh", "output": {"refreshed_symbols": refreshed}}
+            )
+
+        valuation_out = run_valuation_agent(db, universe_ids)
+        trace["steps"].append({"agent": "valuation_agent", "output": valuation_out})
+
         factors = compute_factors(db, universe_ids)
         trace["steps"].append({"agent": "factor_agent", "output": factors})
 
-        portfolio_out = propose_weights(db, portfolio_id, user.id, factors, profile)
+        portfolio_out = propose_weights(
+            db, portfolio_id, user.id, factors, profile, current_map=current_map
+        )
         trace["steps"].append({"agent": "portfolio_agent", "output": portfolio_out})
 
         proposed = portfolio_out["proposed_weights"]
@@ -63,13 +85,17 @@ def run_rebalance_workflow(db: Session, portfolio_id: UUID, trigger: str = "manu
             risk_round += 1
         trace["steps"].append({"agent": "risk_agent", "output": risk_result})
 
+        dossiers = build_dossiers_for_universe(
+            db, portfolio_id, universe_ids, profile, current_map, risk_result
+        )
+        trace["dossiers"] = {
+            sym: dossier_summary_for_trace(d) for sym, d in dossiers.items()
+        }
+
         symbols = [p.get("symbol") for p in proposed if p.get("symbol")]
         sectors: set[str] = set()
-        for p in proposed:
-            sid = p.get("security_id")
-            if not sid:
-                continue
-            sec = db.get(Security, UUID(str(sid)))
+        for sid in universe_ids:
+            sec = db.get(Security, sid)
             if sec and sec.sector:
                 sectors.add(sec.sector)
         memories = search_memory_context(
@@ -83,7 +109,16 @@ def run_rebalance_workflow(db: Session, portfolio_id: UUID, trigger: str = "manu
         trace["memories"] = [{"title": m.title, "content": m.content} for m in memories]
 
         decision_ids, cio_outputs, cio_mode = generate_cio_decisions(
-            db, portfolio_id, proposed, current_map, risk_result, memories, trace, profile
+            db,
+            portfolio_id,
+            proposed,
+            current_map,
+            risk_result,
+            memories,
+            trace,
+            profile,
+            dossiers_by_symbol=dossiers,
+            strategy_rules=strategy_rules,
         )
         trace["cio_mode"] = cio_mode
 
@@ -153,4 +188,8 @@ def get_agent_config() -> dict:
         "llm_active": use_llm_agents(),
         "llm_model": settings.llm_model if settings.openai_api_key else None,
         "data_sync_cron_enabled": settings.data_sync_cron_enabled,
+        "cio_decision_mode": settings.cio_decision_mode,
+        "cio_refresh_research": settings.cio_refresh_research,
+        "cio_max_symbols": settings.cio_max_symbols,
+        "rebalance_cron_chain_after_sync": settings.rebalance_cron_chain_after_sync,
     }

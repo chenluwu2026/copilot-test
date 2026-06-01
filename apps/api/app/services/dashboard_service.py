@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Decision, DecisionStatus
 from app.services.data_quality_service import get_data_quality
+from app.services.event_review_service import high_impact_event_todos
 from app.services.profile_service import get_investment_profile
 from app.services.review_reminder_service import review_summary
 from app.services.user_context import get_default_user
@@ -16,15 +17,19 @@ def get_dashboard_actions(db: Session, portfolio_id: UUID) -> dict:
     profile = get_investment_profile(user)
     review = review_summary(db, portfolio_id, profile)
 
-    drafts = len(
-        list(
-            db.scalars(
-                select(Decision).where(
-                    Decision.portfolio_id == portfolio_id,
-                    Decision.status == DecisionStatus.draft,
-                )
+    draft_rows = list(
+        db.scalars(
+            select(Decision).where(
+                Decision.portfolio_id == portfolio_id,
+                Decision.status == DecisionStatus.draft,
             )
         )
+    )
+    drafts = len(draft_rows)
+    low_evidence_drafts = sum(
+        1
+        for d in draft_rows
+        if (d.cio_summary or {}).get("evidence_grade") == "C"
     )
     approved = len(
         list(
@@ -42,11 +47,15 @@ def get_dashboard_actions(db: Session, portfolio_id: UUID) -> dict:
         "missing_quotes", 0
     )
 
+    event_todos = high_impact_event_todos(db, user.id)
+
     return {
         "portfolio_id": str(portfolio_id),
         "review": review,
         "draft_decisions": drafts,
+        "low_evidence_drafts": low_evidence_drafts,
         "approved_decisions": approved,
         "stale_data_symbols": stale,
         "data_coverage_pct": quality["summary"].get("coverage_pct", 0),
+        "event_review_todos": event_todos,
     }

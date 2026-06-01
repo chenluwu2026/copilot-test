@@ -31,7 +31,12 @@ class Settings(BaseSettings):
     auto_daily_report_after_sync: bool = False
     rebalance_cron_enabled: bool = False
     rebalance_cron_time: str = "19:00"
+    rebalance_cron_chain_after_sync: bool = False
     cron_secret: str | None = None
+    # CIO 证据驱动决策
+    cio_decision_mode: str = "batch"  # batch | per_symbol
+    cio_refresh_research: bool = False
+    cio_max_symbols: int = 12
     run_seed: bool = False
     # Agent：rule=规则引擎 | llm=大模型 CIO（需 OPENAI_API_KEY）
     agent_mode: str = "rule"
