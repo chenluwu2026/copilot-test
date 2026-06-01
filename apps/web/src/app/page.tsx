@@ -2,6 +2,7 @@ import Link from "next/link";
 import { NavChart } from "@/components/NavChart";
 import { Card } from "@/components/Card";
 import { DashboardActionCenter } from "@/components/DashboardActionCenter";
+import { QuickStartGuide } from "@/components/QuickStartGuide";
 import { api } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
@@ -36,6 +37,8 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">Dashboard</h1>
+
+      <QuickStartGuide />
 
       <section>
         <h2 className="mb-2 text-sm font-medium text-gray-400">今日待办</h2>
