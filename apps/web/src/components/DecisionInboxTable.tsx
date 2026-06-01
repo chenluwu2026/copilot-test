@@ -6,6 +6,23 @@ import { useState } from "react";
 import type { Decision } from "@/lib/api";
 import { api } from "@/lib/api";
 
+function gradeBadge(grade?: string) {
+  if (!grade) return null;
+  const colors: Record<string, string> = {
+    A: "text-aims-positive border-aims-positive/40",
+    B: "text-yellow-400 border-yellow-600/40",
+    C: "text-red-400 border-red-600/40",
+  };
+  return (
+    <span
+      className={`ml-2 rounded border px-1.5 py-0.5 text-xs ${colors[grade] || "text-gray-400 border-gray-600"}`}
+      title="证据完整度"
+    >
+      证据 {grade}
+    </span>
+  );
+}
+
 export function DecisionInboxTable({
   items,
   showReject = true,
@@ -15,6 +32,13 @@ export function DecisionInboxTable({
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
+
+  const sorted = [...items].sort((a, b) => {
+    const order = { C: 0, B: 1, A: 2 };
+    const ga = a.evidence_grade || "B";
+    const gb = b.evidence_grade || "B";
+    return (order[ga as keyof typeof order] ?? 1) - (order[gb as keyof typeof order] ?? 1);
+  });
 
   async function setStatus(id: string, status: string) {
     setLoading(`${status}-${id}`);
@@ -28,7 +52,7 @@ export function DecisionInboxTable({
     }
   }
 
-  if (!items.length) {
+  if (!sorted.length) {
     return <p className="text-sm text-gray-500">收件箱为空</p>;
   }
 
@@ -39,17 +63,24 @@ export function DecisionInboxTable({
           <th>标的</th>
           <th>动作</th>
           <th>仓位</th>
+          <th>证据</th>
           <th>状态</th>
           <th></th>
         </tr>
       </thead>
       <tbody>
-        {items.map((d) => (
+        {sorted.map((d) => (
           <tr key={d.id} className="border-t border-aims-border">
-            <td className="py-2">{d.name}</td>
+            <td className="py-2">
+              {d.name}
+              {gradeBadge(d.evidence_grade)}
+            </td>
             <td>{d.action}</td>
             <td>
               {d.current_weight_pct}% → {d.target_weight_pct}%
+            </td>
+            <td className="text-xs text-gray-400">
+              {d.evidence_score != null ? `${d.evidence_score} 分` : "—"}
             </td>
             <td>{d.status}</td>
             <td className="space-x-2 whitespace-nowrap">

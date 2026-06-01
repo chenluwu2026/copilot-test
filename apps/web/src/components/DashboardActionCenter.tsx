@@ -4,8 +4,15 @@ import type { DashboardActions } from "@/lib/api";
 export function DashboardActionCenter({ actions }: { actions: DashboardActions | null }) {
   if (!actions) return null;
 
-  const { review, draft_decisions, approved_decisions, stale_data_symbols, data_coverage_pct } =
-    actions;
+  const {
+    review,
+    draft_decisions,
+    low_evidence_drafts = 0,
+    approved_decisions,
+    stale_data_symbols,
+    data_coverage_pct,
+    event_review_todos = [],
+  } = actions;
 
   const items = [
     {
@@ -23,7 +30,20 @@ export function DashboardActionCenter({ actions }: { actions: DashboardActions |
       value: draft_decisions,
       highlight: draft_decisions > 0,
       href: "/decisions/inbox",
-      sub: draft_decisions > 0 ? "CIO 草案待处理" : undefined,
+      sub:
+        draft_decisions > 0
+          ? `CIO 草案${low_evidence_drafts > 0 ? `，${low_evidence_drafts} 条证据偏弱` : ""}`
+          : undefined,
+    },
+    {
+      label: "事件复审",
+      value: event_review_todos.length,
+      highlight: event_review_todos.length > 0,
+      href: "/events",
+      sub:
+        event_review_todos.length > 0
+          ? event_review_todos[0].symbols.join(", ")
+          : undefined,
     },
     {
       label: "待执行",

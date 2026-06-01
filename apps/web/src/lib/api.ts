@@ -263,6 +263,8 @@ export type Decision = {
   review_conditions: string[];
   confidence_grade?: string;
   holding_period?: string;
+  evidence_grade?: string;
+  evidence_score?: number;
   assumptions: { text: string; measurable: boolean }[];
   references: { ref_type: string; excerpt?: string }[];
   created_at?: string;
@@ -377,9 +379,18 @@ export type DashboardActions = {
   portfolio_id: string;
   review: ReviewSummary;
   draft_decisions: number;
+  low_evidence_drafts?: number;
   approved_decisions: number;
   stale_data_symbols: number;
   data_coverage_pct: number;
+  event_review_todos?: {
+    event_id: string;
+    symbols: string[];
+    summary: string;
+    impact_direction: string;
+    published_at: string;
+    suggested_action: string;
+  }[];
 };
 
 export type DecisionProvenance = {
@@ -388,6 +399,9 @@ export type DecisionProvenance = {
   created_by_agent?: string;
   gate_hints: string[];
   linked_memories: { id: string; title: string; content: string; active: boolean }[];
+  evidence?: { grade?: string; score?: number; issues?: string[] };
+  references?: { ref_type: string; ref_id?: string; excerpt?: string }[];
+  dossier_summary?: Record<string, unknown> | null;
   agent_run?: {
     run_id: string;
     workflow_name: string;
@@ -395,8 +409,12 @@ export type DecisionProvenance = {
     started_at?: string;
     agent_mode?: string;
     cio_mode?: string;
+    cio_decision_mode?: string;
+    dossier_summary?: Record<string, unknown>;
     memory_query?: { symbols?: string[]; sectors?: string[] };
     memories?: { title: string; content?: string }[];
+    portfolio_step?: Record<string, unknown>;
+    valuation_step?: Record<string, unknown>;
   } | null;
 };
 
