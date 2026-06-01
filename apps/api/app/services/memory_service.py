@@ -20,6 +20,74 @@ def search_memory(db: Session, query: str | None = None, limit: int = 10) -> lis
     return list(db.scalars(q))
 
 
+def _tokenize_context(
+    symbols: list[str] | None = None,
+    sectors: list[str] | None = None,
+    keywords: list[str] | None = None,
+) -> list[str]:
+    tokens: list[str] = []
+    for s in symbols or []:
+        if not s:
+            continue
+        tokens.append(s)
+        base = s.split(".")[0]
+        if base and base != s:
+            tokens.append(base)
+    for sec in sectors or []:
+        if sec:
+            tokens.append(sec)
+    for kw in keywords or []:
+        if kw:
+            tokens.append(kw)
+    seen: set[str] = set()
+    out: list[str] = []
+    for t in tokens:
+        key = t.lower()
+        if key not in seen and len(t) >= 2:
+            seen.add(key)
+            out.append(t)
+    return out
+
+
+def _memory_match_score(entry: MemoryEntry, tokens: list[str]) -> int:
+    hay = " ".join(
+        [
+            entry.title or "",
+            entry.content or "",
+            " ".join(entry.tags or []),
+        ]
+    ).lower()
+    return sum(1 for t in tokens if t.lower() in hay)
+
+
+def search_memory_context(
+    db: Session,
+    *,
+    symbols: list[str] | None = None,
+    sectors: list[str] | None = None,
+    keywords: list[str] | None = None,
+    limit: int = 5,
+) -> list[MemoryEntry]:
+    """按标的/行业/关键词检索活跃记忆，供 CIO / Portfolio 注入。"""
+    tokens = _tokenize_context(symbols, sectors, keywords)
+    if not tokens:
+        return search_memory(db, "投资", limit=limit)
+
+    rows = list(
+        db.scalars(
+            select(MemoryEntry)
+            .where(MemoryEntry.active.is_(True))
+            .order_by(MemoryEntry.confidence.desc())
+            .limit(50)
+        )
+    )
+    ranked = sorted(rows, key=lambda m: _memory_match_score(m, tokens), reverse=True)
+    matched = [m for m in ranked if _memory_match_score(m, tokens) > 0]
+    if matched:
+        return matched[:limit]
+    return search_memory(db, " ".join(tokens[:3]), limit=limit)
+
+
 def list_memories(db: Session, active_only: bool = False, pending: bool | None = None) -> list:
     q = select(MemoryEntry).order_by(MemoryEntry.created_at.desc())
     if active_only:

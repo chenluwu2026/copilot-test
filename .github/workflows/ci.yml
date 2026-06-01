@@ -45,8 +45,16 @@ jobs:
           curl -sf http://127.0.0.1:8000/api/v1/events | head -c 200
           curl -sf http://127.0.0.1:8000/api/v1/research | head -c 200
           curl -sf http://127.0.0.1:8000/api/v1/memory | head -c 200
+          curl -sf http://127.0.0.1:8000/api/v1/users/me | head -c 200
           PID=$(curl -sf http://127.0.0.1:8000/api/v1/portfolios | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['id'])")
+          curl -sf "http://127.0.0.1:8000/api/v1/review/open-decisions?portfolio_id=$PID" | head -c 200
           curl -sf -X POST "http://127.0.0.1:8000/api/v1/agents/workflows/rebalance/$PID" | head -c 200
+      - name: Unit tests
+        working-directory: apps/api
+        env:
+          DATABASE_URL: postgresql://aims:aims@localhost:5432/aims
+          SCHEMAS_DIR: ${{ github.workspace }}/schemas
+        run: python -m unittest discover -s tests -p 'test_*.py' -v
 
   web:
     runs-on: ubuntu-latest

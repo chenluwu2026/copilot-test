@@ -6,12 +6,13 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.models import AgentRun, AgentRunStatus, Position, Watchlist, WatchlistItem
+from app.models import AgentRun, AgentRunStatus, Position, Security, Watchlist, WatchlistItem
 from app.services.cio_agent_service import generate_cio_decisions
 from app.services.factor_service import compute_factors
-from app.services.memory_service import search_memory
+from app.services.memory_service import search_memory_context
 from app.services.portfolio_agent_service import propose_weights
 from app.services.portfolio_service import get_portfolio_summary
+from app.services.profile_service import get_investment_profile
 from app.services.risk_service import check_risk
 from app.services.user_context import get_default_user
 
@@ -33,6 +34,8 @@ def run_rebalance_workflow(db: Session, portfolio_id: UUID, trigger: str = "manu
     trace: dict = {"steps": [], "agent_mode": settings.agent_mode}
     try:
         user = get_default_user(db)
+        profile = get_investment_profile(user)
+        trace["investment_profile"] = profile
         summary = get_portfolio_summary(db, portfolio_id)
         current_map = {p["symbol"]: p["weight_pct"] for p in summary["positions"]}
 
@@ -48,7 +51,7 @@ def run_rebalance_workflow(db: Session, portfolio_id: UUID, trigger: str = "manu
         factors = compute_factors(db, universe_ids)
         trace["steps"].append({"agent": "factor_agent", "output": factors})
 
-        portfolio_out = propose_weights(db, portfolio_id, user.id, factors)
+        portfolio_out = propose_weights(db, portfolio_id, user.id, factors, profile)
         trace["steps"].append({"agent": "portfolio_agent", "output": portfolio_out})
 
         proposed = portfolio_out["proposed_weights"]
@@ -60,11 +63,27 @@ def run_rebalance_workflow(db: Session, portfolio_id: UUID, trigger: str = "manu
             risk_round += 1
         trace["steps"].append({"agent": "risk_agent", "output": risk_result})
 
-        memories = search_memory(db, "投资", limit=5)
+        symbols = [p.get("symbol") for p in proposed if p.get("symbol")]
+        sectors: set[str] = set()
+        for p in proposed:
+            sid = p.get("security_id")
+            if not sid:
+                continue
+            sec = db.get(Security, UUID(str(sid)))
+            if sec and sec.sector:
+                sectors.add(sec.sector)
+        memories = search_memory_context(
+            db,
+            symbols=symbols,
+            sectors=list(sectors),
+            keywords=["教训", "复盘", "风险"],
+            limit=5,
+        )
+        trace["memory_query"] = {"symbols": symbols, "sectors": list(sectors)}
         trace["memories"] = [{"title": m.title, "content": m.content} for m in memories]
 
         decision_ids, cio_outputs, cio_mode = generate_cio_decisions(
-            db, portfolio_id, proposed, current_map, risk_result, memories, trace
+            db, portfolio_id, proposed, current_map, risk_result, memories, trace, profile
         )
         trace["cio_mode"] = cio_mode
 

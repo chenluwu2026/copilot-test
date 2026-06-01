@@ -154,6 +154,13 @@ export const api = {
   syncJobs: () => fetchApi<SyncJob[]>(`/data/sync/jobs`),
   dataQuality: () => fetchApi<DataQualityReport>("/data/quality"),
   agentConfig: () => fetchApi<AgentConfig>("/agents/config"),
+
+  me: () => fetchApi<UserMe>("/users/me"),
+  updateProfile: (body: Partial<InvestmentProfile>) =>
+    fetchApi<{ investment_profile: InvestmentProfile }>("/users/me/profile", {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
   barsBySymbol: (symbol: string, days = 90) =>
     fetchApi<MarketBar[]>(`/data/bars/symbol/${encodeURIComponent(symbol)}?days=${days}`),
   filings: (securityId?: string, limit = 50) =>
@@ -320,6 +327,28 @@ export type DataQualityReport = {
     filing_count: number;
     financial_report_count: number;
   }[];
+};
+
+export type InvestmentProfile = {
+  markets: string[];
+  style: string[];
+  risk_budget: {
+    max_drawdown_pct?: number;
+    max_single_name_pct: number;
+    max_sector_pct: number;
+    min_cash_pct: number;
+  };
+  forbidden_sectors: string[];
+  forbidden_symbols: string[];
+  research_max_age_days: number;
+  notes: string;
+};
+
+export type UserMe = {
+  id: string;
+  email: string;
+  display_name: string;
+  investment_profile: InvestmentProfile;
 };
 
 export type AgentConfig = {
