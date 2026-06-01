@@ -57,7 +57,9 @@ def _memory_match_score(entry: MemoryEntry, tokens: list[str]) -> int:
             " ".join(entry.tags or []),
         ]
     ).lower()
-    return sum(1 for t in tokens if t.lower() in hay)
+    score = sum(2 if t.lower() in (entry.title or "").lower() else 1 for t in tokens if t.lower() in hay)
+    score += int(float(getattr(entry, "confidence", 0) or 0) / 20)
+    return score
 
 
 def search_memory_context(

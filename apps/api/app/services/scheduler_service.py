@@ -10,6 +10,8 @@ from app.database import SessionLocal
 from app.models import DataSyncJob, Portfolio, SyncJobStatus, SyncJobType
 from app.services.orchestrator import run_rebalance_workflow
 from app.services.report_service import generate_daily_report
+from app.services.news_sync_service import run_scheduled_news_sync
+from app.services.review_cron_service import run_scheduled_reviews
 from app.services.sync_runner import start_sync_all_background
 from app.services.user_context import get_default_user
 
@@ -80,11 +82,33 @@ def _scheduled_rebalance_draft():
         db.close()
 
 
+def _scheduled_review_due():
+    if not settings.review_cron_enabled:
+        return
+    try:
+        result = run_scheduled_reviews()
+        logger.info("scheduled review due: %s", result)
+    except Exception:
+        logger.exception("scheduled review failed")
+
+
+def _scheduled_news_sync():
+    if not settings.news_sync_cron_enabled:
+        return
+    try:
+        result = run_scheduled_news_sync()
+        logger.info("scheduled news sync: %s", result)
+    except Exception:
+        logger.exception("scheduled news sync failed")
+
+
 def _any_cron_enabled() -> bool:
     return (
         settings.data_sync_cron_enabled
         or settings.rebalance_cron_enabled
         or settings.daily_report_cron_enabled
+        or settings.review_cron_enabled
+        or settings.news_sync_cron_enabled
     )
 
 
@@ -138,6 +162,26 @@ def start_scheduler() -> BackgroundScheduler | None:
             settings.rebalance_cron_time,
             settings.data_sync_cron_tz,
         )
+
+    if settings.review_cron_enabled:
+        rvh, rvm = settings.review_cron_time.split(":", 1)
+        _scheduler.add_job(
+            _scheduled_review_due,
+            CronTrigger(hour=int(rvh), minute=int(rvm)),
+            id="aims_review_due",
+            replace_existing=True,
+        )
+        logger.info("review cron at %s", settings.review_cron_time)
+
+    if settings.news_sync_cron_enabled:
+        nh, nm = settings.news_sync_cron_time.split(":", 1)
+        _scheduler.add_job(
+            _scheduled_news_sync,
+            CronTrigger(hour=int(nh), minute=int(nm)),
+            id="aims_news_sync",
+            replace_existing=True,
+        )
+        logger.info("news sync cron at %s", settings.news_sync_cron_time)
 
     _scheduler.start()
     return _scheduler

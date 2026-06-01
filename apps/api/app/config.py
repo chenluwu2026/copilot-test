@@ -36,6 +36,15 @@ class Settings(BaseSettings):
     daily_report_cron_time: str = "19:05"
     event_research_refresh_enabled: bool = True
     event_research_refresh_force_draft: bool = False
+    review_cron_enabled: bool = False
+    review_cron_time: str = "20:00"
+    review_cron_max_per_run: int = 5
+    news_sync_cron_enabled: bool = False
+    news_sync_cron_time: str = "09:00"
+    news_sync_max_symbols: int = 8
+    jwt_secret: str | None = None
+    auth_password: str | None = None
+    alembic_upgrade_on_start: bool = False
     cron_secret: str | None = None
     # CIO 证据驱动决策
     cio_decision_mode: str = "batch"  # batch | per_symbol

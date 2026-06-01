@@ -13,3 +13,4 @@ akshare>=1.14.0
 pandas>=2.0.0
 apscheduler>=3.10.4
 openai>=1.55.0
+PyJWT>=2.9.0

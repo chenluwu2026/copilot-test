@@ -20,8 +20,8 @@ export default async function DataPage() {
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">数据中心</h1>
       <p className="text-sm text-gray-400">
-        行情 / 公告 / 财报同步（AkShare）。支持后台全量同步与定时任务（API 环境变量
-        DATA_SYNC_CRON_ENABLED）。
+        行情 / 公告 / 财报 / 关注池资讯同步（AkShare）。支持后台全量同步与定时任务（
+        DATA_SYNC_CRON_ENABLED、NEWS_SYNC_CRON_ENABLED）。
       </p>
 
       {s && (
