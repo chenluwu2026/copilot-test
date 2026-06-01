@@ -165,6 +165,29 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(body),
     }),
+  profileSuggestions: () => fetchApi<ProfileSuggestions>("/users/me/profile/suggestions"),
+  applyProfileSuggestion: (field: string, suggested: number) =>
+    fetchApi<{ investment_profile: InvestmentProfile }>("/users/me/profile/apply-suggestion", {
+      method: "POST",
+      body: JSON.stringify({ field, suggested }),
+    }),
+
+  dashboardActions: (portfolioId: string) =>
+    fetchApi<DashboardActions>(`/dashboard/actions?portfolio_id=${portfolioId}`),
+
+  decisionProvenance: (decisionId: string) =>
+    fetchApi<DecisionProvenance>(`/decisions/${decisionId}/provenance`),
+
+  createResearch: (body: object) =>
+    fetchApi<ResearchViewDetail>("/research", { method: "POST", body: JSON.stringify(body) }),
+
+  rules: () => fetchApi<StrategyRuleItem[]>("/rules"),
+  createRule: (body: object) =>
+    fetchApi<StrategyRuleItem>("/rules", { method: "POST", body: JSON.stringify(body) }),
+  updateRule: (id: string, body: object) =>
+    fetchApi<StrategyRuleItem>(`/rules/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  deleteRule: (id: string) =>
+    fetchApi<{ deleted: string }>(`/rules/${id}`, { method: "DELETE" }),
   barsBySymbol: (symbol: string, days = 90) =>
     fetchApi<MarketBar[]>(`/data/bars/symbol/${encodeURIComponent(symbol)}?days=${days}`),
   filings: (securityId?: string, limit = 50) =>
@@ -348,6 +371,54 @@ export type InvestmentProfile = {
   review_due_days: number;
   review_material_move_pct: number;
   notes: string;
+};
+
+export type DashboardActions = {
+  portfolio_id: string;
+  review: ReviewSummary;
+  draft_decisions: number;
+  approved_decisions: number;
+  stale_data_symbols: number;
+  data_coverage_pct: number;
+};
+
+export type DecisionProvenance = {
+  decision_id: string;
+  cio_summary: Record<string, unknown>;
+  created_by_agent?: string;
+  gate_hints: string[];
+  linked_memories: { id: string; title: string; content: string; active: boolean }[];
+  agent_run?: {
+    run_id: string;
+    workflow_name: string;
+    status: string;
+    started_at?: string;
+    agent_mode?: string;
+    cio_mode?: string;
+    memory_query?: { symbols?: string[]; sectors?: string[] };
+    memories?: { title: string; content?: string }[];
+  } | null;
+};
+
+export type ProfileSuggestions = {
+  suggestions: {
+    field: string;
+    current: number;
+    suggested: number;
+    reason: string;
+  }[];
+  rationale: string;
+  sample_corrections: string[];
+};
+
+export type StrategyRuleItem = {
+  id: string;
+  rule_code: string;
+  natural_language: string;
+  machine_check: Record<string, unknown>;
+  active: boolean;
+  source_memory_id?: string | null;
+  created_at?: string;
 };
 
 export type UserMe = {

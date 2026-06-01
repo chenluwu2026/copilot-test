@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.services.profile_service import get_investment_profile, update_investment_profile
+from app.services.profile_suggestion_service import suggest_profile_updates, suggestion_to_patch
 from app.services.user_context import get_default_user
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -37,6 +38,29 @@ def get_me(db: Session = Depends(get_db)):
         "display_name": user.display_name,
         "investment_profile": get_investment_profile(user),
     }
+
+
+@router.get("/me/profile/suggestions")
+def profile_suggestions(db: Session = Depends(get_db)):
+    user = get_default_user(db)
+    return suggest_profile_updates(db, user.id)
+
+
+class ApplySuggestionBody(BaseModel):
+    field: str
+    suggested: float | int
+
+
+@router.post("/me/profile/apply-suggestion")
+def apply_profile_suggestion(body: ApplySuggestionBody, db: Session = Depends(get_db)):
+    user = get_default_user(db)
+    patch = suggestion_to_patch({"field": body.field, "suggested": body.suggested})
+    if not patch:
+        from fastapi import HTTPException
+
+        raise HTTPException(400, "无法应用该建议字段")
+    updated = update_investment_profile(db, user, patch)
+    return {"investment_profile": updated}
 
 
 @router.patch("/me/profile")

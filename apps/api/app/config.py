@@ -27,6 +27,10 @@ class Settings(BaseSettings):
     data_sync_cron_enabled: bool = False
     data_sync_cron_time: str = "18:30"
     data_sync_cron_tz: str = "Asia/Shanghai"
+    auto_nav_after_sync: bool = True
+    auto_daily_report_after_sync: bool = False
+    rebalance_cron_enabled: bool = False
+    rebalance_cron_time: str = "19:00"
     cron_secret: str | None = None
     run_seed: bool = False
     # Agent：rule=规则引擎 | llm=大模型 CIO（需 OPENAI_API_KEY）

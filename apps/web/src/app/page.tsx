@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { NavChart } from "@/components/NavChart";
 import { Card } from "@/components/Card";
+import { DashboardActionCenter } from "@/components/DashboardActionCenter";
 import { api } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
@@ -18,6 +19,12 @@ export default async function DashboardPage() {
     nav = await api.portfolioNav(p.id, 90);
   }
   const decisions = await api.decisions(p.id);
+  let actions: Awaited<ReturnType<typeof api.dashboardActions>> | null = null;
+  try {
+    actions = await api.dashboardActions(p.id);
+  } catch {
+    actions = null;
+  }
   let memories: { title: string; content: string }[] = [];
   try {
     const mem = await api.memories();
@@ -29,6 +36,12 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">Dashboard</h1>
+
+      <section>
+        <h2 className="mb-2 text-sm font-medium text-gray-400">今日待办</h2>
+        <DashboardActionCenter actions={actions} />
+      </section>
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card title="组合净值">
           <p className="text-2xl font-semibold">{summary.nav.toLocaleString("zh-CN")}</p>

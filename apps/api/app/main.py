@@ -8,6 +8,7 @@ from app.config import settings
 from app.database import Base, engine
 from app.routers import (
     agents,
+    dashboard,
     data,
     decisions,
     events,
@@ -15,6 +16,7 @@ from app.routers import (
     portfolios,
     research,
     review,
+    rules,
     securities,
     users,
     watchlists,
@@ -70,6 +72,8 @@ app.include_router(memory.router, prefix=prefix)
 app.include_router(review.router, prefix=prefix)
 app.include_router(data.router, prefix=prefix)
 app.include_router(users.router, prefix=prefix)
+app.include_router(dashboard.router, prefix=prefix)
+app.include_router(rules.router, prefix=prefix)
 
 
 @app.get("/health")

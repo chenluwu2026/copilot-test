@@ -174,9 +174,19 @@ def _generate_llm(
         "memories": [{"title": m.title, "content": m.content[:200]} for m in memories],
     }
     user = json.dumps(context, ensure_ascii=False, indent=2)
-    raw = complete_json(CIO_SYSTEM, user)
+    raw = None
+    last_err: Exception | None = None
+    for attempt in range(2):
+        try:
+            raw = complete_json(CIO_SYSTEM, user)
+            break
+        except Exception as e:
+            last_err = e
+            trace.setdefault("cio_llm_retries", []).append(str(e))
+    if raw is None:
+        raise RuntimeError(f"LLM JSON failed after retries: {last_err}")
     trace["cio_llm_raw_keys"] = list(raw.keys())
-    items = raw.get("decisions") or []
+    items = (raw.get("decisions") or [])[:10]
     decision_ids = []
     cio_outputs = []
 

@@ -26,6 +26,10 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080,http://127.0.0.1:8080}
       SCHEMAS_DIR: /schemas
       RUN_SEED: ${RUN_SEED:-true}
+      AUTO_NAV_AFTER_SYNC: ${AUTO_NAV_AFTER_SYNC:-true}
+      AUTO_DAILY_REPORT_AFTER_SYNC: ${AUTO_DAILY_REPORT_AFTER_SYNC:-false}
+      DATA_SYNC_CRON_ENABLED: ${DATA_SYNC_CRON_ENABLED:-false}
+      REBALANCE_CRON_ENABLED: ${REBALANCE_CRON_ENABLED:-false}
       DATA_PROVIDER: ${DATA_PROVIDER:-akshare}
       API_KEY: ${API_KEY:-}
       # API_KEY: "your-secret"  # 启用后前端需设 NEXT_PUBLIC_API_KEY（见 DEPLOY.md）

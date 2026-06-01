@@ -8,6 +8,7 @@ from app.models import DecisionAction, DecisionStatus
 from app.schemas_api import DecisionCreate, DecisionExecute, DecisionStatusUpdate, FeedbackCreate
 from app.services import decision_service as ds
 from app.services import portfolio_service as ps
+from app.services.decision_provenance_service import get_decision_provenance
 from app.services.user_context import get_default_user
 
 router = APIRouter(prefix="/decisions", tags=["decisions"])
@@ -73,6 +74,14 @@ def list_decisions(
     st = DecisionStatus(status) if status else None
     items = ds.list_decisions(db, portfolio_id, st)
     return [_decision_to_dict(d) for d in items]
+
+
+@router.get("/{decision_id}/provenance")
+def decision_provenance(decision_id: UUID, db: Session = Depends(get_db)):
+    try:
+        return get_decision_provenance(db, decision_id)
+    except ValueError as e:
+        raise HTTPException(404, str(e)) from e
 
 
 @router.get("/{decision_id}")
