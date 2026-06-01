@@ -74,10 +74,13 @@ export const api = {
       body: JSON.stringify({ status }),
     }),
   executeDecision: (id: string, price?: number) =>
-    fetchApi<{ trade_id: string }>(`/decisions/${id}/execute`, {
-      method: "POST",
-      body: JSON.stringify({ price }),
-    }),
+    fetchApi<{ trade_id: string | null; status: string; message?: string }>(
+      `/decisions/${id}/execute`,
+      {
+        method: "POST",
+        body: JSON.stringify({ price }),
+      }
+    ),
   feedback: (id: string, body: object) =>
     fetchApi(`/decisions/${id}/feedback`, { method: "POST", body: JSON.stringify(body) }),
 

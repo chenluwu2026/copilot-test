@@ -60,7 +60,7 @@ export function DecisionActions({
     }
   }
 
-  const canTrade = !["hold", "watch", "ban"].includes(action);
+  const isAckOnly = ["hold", "watch", "ban"].includes(action);
 
   return (
     <div className="rounded-lg border border-aims-border bg-aims-card p-4 space-y-3">
@@ -82,12 +82,12 @@ export function DecisionActions({
             </button>
           </>
         )}
-        {status === "approved" && canTrade && (
+        {status === "approved" && (
           <button
             onClick={execute}
             className="rounded bg-aims-trade px-4 py-2 text-sm text-white"
           >
-            执行模拟交易
+            {isAckOnly ? "确认（无需成交）" : "执行模拟交易"}
           </button>
         )}
       </div>
