@@ -14,7 +14,7 @@ export default async function DashboardPage() {
   }
   const summary = await api.portfolioSummary(p.id);
   let nav = await api.portfolioNav(p.id, 90);
-  if (nav.length < 5) {
+  if (nav.length === 0) {
     await api.backfillNav(p.id);
     nav = await api.portfolioNav(p.id, 90);
   }

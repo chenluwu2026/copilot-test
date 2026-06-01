@@ -91,34 +91,50 @@ def list_nav(db: Session, portfolio_id: UUID, days: int = 90) -> list[NavSnapsho
 
 
 def backfill_demo_nav(db: Session, portfolio_id: UUID, days: int = 30) -> int:
-    """为演示生成简单净值序列（基于当前 NAV 随机游走）。"""
+    """为演示生成平滑净值序列（围绕当前 NAV 小幅波动，避免指数级假数据）。"""
     import random
 
+    refresh_portfolio_valuation(db, portfolio_id)
     summary = get_portfolio_summary(db, portfolio_id)
     base_nav = float(summary["nav"])
+    cash = Decimal(str(summary["cash"]))
+    market_value = Decimal(str(summary.get("market_value", summary["nav"] - summary["cash"])))
+    start_nav = base_nav * (1 + random.uniform(-0.02, 0.02))
     count = 0
     for i in range(days, 0, -1):
         d = date.today() - timedelta(days=i)
-        jitter = 1 + random.uniform(-0.015, 0.015)
-        fake_nav = Decimal(str(round(base_nav * jitter ** (days - i), 2)))
         snap = db.scalar(
             select(NavSnapshot).where(
                 NavSnapshot.portfolio_id == portfolio_id,
                 NavSnapshot.snapshot_date == d,
             )
         )
-        if not snap:
-            snap = NavSnapshot(
-                portfolio_id=portfolio_id,
-                snapshot_date=d,
-                nav=fake_nav,
-                cash=Decimal(str(summary["cash"])),
-                gross_exposure=fake_nav - Decimal(str(summary["cash"])),
-                daily_return_pct=Decimal(str(round(random.uniform(-2, 2), 4))),
-                cumulative_return_pct=Decimal("0"),
-                drawdown_pct=Decimal("0"),
-            )
-            db.add(snap)
-            count += 1
+        if snap:
+            continue
+        progress = (days - i) / max(days, 1)
+        trend = start_nav + (base_nav - start_nav) * progress
+        noise = base_nav * random.uniform(-0.004, 0.004)
+        fake_nav = Decimal(str(round(trend + noise, 2)))
+        snap = NavSnapshot(
+            portfolio_id=portfolio_id,
+            snapshot_date=d,
+            nav=fake_nav,
+            cash=cash,
+            gross_exposure=market_value,
+            daily_return_pct=Decimal("0"),
+            cumulative_return_pct=Decimal("0"),
+            drawdown_pct=Decimal("0"),
+        )
+        db.add(snap)
+        count += 1
     db.commit()
     return count
+
+
+def reset_nav_snapshots(db: Session, portfolio_id: UUID) -> NavSnapshot:
+    """清除历史净值点并仅记录今日真实快照（修复混入演示数据后的曲线）。"""
+    from sqlalchemy import delete
+
+    db.execute(delete(NavSnapshot).where(NavSnapshot.portfolio_id == portfolio_id))
+    db.commit()
+    return record_nav_snapshot(db, portfolio_id)
