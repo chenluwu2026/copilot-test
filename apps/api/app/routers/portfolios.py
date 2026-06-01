@@ -8,7 +8,12 @@ from app.database import get_db
 from app.models import Trade, TradeSide
 from app.schemas_api import PortfolioCreate, PortfolioOut, TradeCreate, TradeOut
 from app.services import portfolio_service as ps
-from app.services.nav_service import backfill_demo_nav, list_nav, record_nav_snapshot
+from app.services.nav_service import (
+    backfill_demo_nav,
+    list_nav,
+    record_nav_snapshot,
+    reset_nav_snapshots,
+)
 from app.services.report_service import generate_daily_report
 from app.services.user_context import get_default_user
 
@@ -146,6 +151,17 @@ def snapshot_nav(portfolio_id: UUID, db: Session = Depends(get_db)):
 def backfill_nav(portfolio_id: UUID, days: int = 30, db: Session = Depends(get_db)):
     count = backfill_demo_nav(db, portfolio_id, days)
     return {"created": count}
+
+
+@router.post("/{portfolio_id}/nav/reset")
+def reset_nav(portfolio_id: UUID, db: Session = Depends(get_db)):
+    """清除错误/演示净值序列，仅保留今日真实快照。"""
+    snap = reset_nav_snapshots(db, portfolio_id)
+    return {
+        "snapshot_date": snap.snapshot_date.isoformat(),
+        "nav": float(snap.nav),
+        "message": "已重置净值曲线；同步数据后会逐日积累真实快照。",
+    }
 
 
 @router.post("/{portfolio_id}/reports/daily")

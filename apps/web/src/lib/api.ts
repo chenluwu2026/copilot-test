@@ -44,6 +44,10 @@ export const api = {
     ),
   backfillNav: (id: string) =>
     fetchApi<{ created: number }>(`/portfolios/${id}/nav/backfill-demo`, { method: "POST" }),
+  resetNav: (id: string) =>
+    fetchApi<{ nav: number; message: string }>(`/portfolios/${id}/nav/reset`, {
+      method: "POST",
+    }),
 
   securities: (q?: string) =>
     fetchApi<Security[]>(`/securities${q ? `?q=${encodeURIComponent(q)}` : ""}`),
