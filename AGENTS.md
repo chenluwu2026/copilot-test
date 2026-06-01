@@ -2,22 +2,21 @@
 
 ## 项目概览
 
-`copilot-test` 当前为**空脚手架仓库**：仅包含 `README.md`（标题）与 MIT `LICENSE`，无应用源码、依赖清单或 CI/容器配置。
+`copilot-test`（AIMS）为 Agentic 投资管理 MVP：FastAPI + Next.js + PostgreSQL，支持 Docker 一键部署。
 
 ## 常用命令
 
-当前仓库**未定义** lint、测试、构建或开发启动命令。添加语言/框架后，请在本节与 `README.md` 中补充真实命令。
-
 | 任务 | 命令 |
 |------|------|
-| Lint | （未配置） |
-| Test | （未配置） |
-| Build | （未配置） |
-| Dev run | （未配置） |
+| API 测试 | `cd apps/api && pip install -r requirements.txt && pytest -q` |
+| 生产部署 | `docker compose -f docker-compose.prod.yml up -d --build` |
+| 前端无缓存重建 | `docker compose -f docker-compose.prod.yml build --no-cache web && docker compose -f docker-compose.prod.yml up -d web` |
+
+详见 `docs/DEPLOY.md`、`docs/USAGE.md`、`docs/CAPABILITY_ROADMAP.md`。
 
 ## Cursor Cloud specific instructions
 
-- **依赖安装**：无需安装；VM 启动时的 `update_script` 为无操作（`true`），在仓库引入 `package.json`、`pyproject.toml` 等之前保持不变。
-- **必须运行的服务**：无。无 Docker Compose、数据库或开发服务器配置。
-- **验证环境**：在仓库根目录执行 `git status` 与 `ls` 即可确认工作区与 Git 正常；无可运行的应用进程。
-- **添加应用后**：在 `update_script` 中仅加入**幂等**的依赖刷新命令（例如 `npm ci`），将服务启动、迁移、测试等步骤写在本节，勿放入 `update_script`。
+- **依赖安装**：`pip install -r apps/api/requirements.txt`；Web 需 `cd apps/web && npm ci`（若改前端）。
+- **必须运行的服务**：本地开发需 PostgreSQL 或 `docker compose -f docker-compose.prod.yml up`；验证用 `curl http://localhost:8080/health`（经 Caddy）。
+- **验证环境**：`cd apps/api && pytest -q`；`git status` 确认分支。
+- **能力路线图 PR**：分支 `cursor/capability-roadmap-162c` 含 A–D（文档/复盘 Cron/资讯同步/登录与指标）。

@@ -194,4 +194,10 @@ def get_agent_config() -> dict:
         "rebalance_cron_chain_after_sync": settings.rebalance_cron_chain_after_sync,
         "daily_report_cron_enabled": settings.daily_report_cron_enabled,
         "event_research_refresh_enabled": settings.event_research_refresh_enabled,
+        "review_cron_enabled": settings.review_cron_enabled,
+        "review_cron_time": settings.review_cron_time,
+        "news_sync_cron_enabled": settings.news_sync_cron_enabled,
+        "news_sync_cron_time": settings.news_sync_cron_time,
+        "auth_password_configured": bool(settings.auth_password),
+        "alembic_upgrade_on_start": settings.alembic_upgrade_on_start,
     }

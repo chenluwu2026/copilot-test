@@ -85,6 +85,43 @@ def compute_decision_return(db: Session, decision: Decision) -> dict:
     }
 
 
+def _maybe_enrich_review_llm(db, decision, assumption_results, right, wrong, summary, ret, meta):
+    from app.services.event_service import list_events
+    from app.services.llm.client import use_llm_agents
+
+    if not use_llm_agents():
+        return assumption_results, right, wrong, summary
+    try:
+        from app.services.llm.client import complete_json
+
+        events = list_events(db, security_id=decision.security_id, limit=3)
+        ev_text = "; ".join((e.get("summary") or "")[:80] for e in events)
+        user = (
+            f"决策：{decision.security.symbol} {decision.action.value}\n"
+            f"理由：{decision.decision_reason[:300]}\n"
+            f"假设：{[a.assumption_text for a in decision.assumptions]}\n"
+            f"收益{ret}%，入场{meta.get('entry_price')}现价{meta.get('exit_price')}\n"
+            f"近期事件：{ev_text}\n"
+            "输出 JSON: {assumption_results:[{assumption_text,result,measurable_evidence}], "
+            "what_went_right:[], what_went_wrong:[], outcome_summary:''}"
+        )
+        raw = complete_json(
+            "你是 Review Agent。结合价格与事件复盘，判断假设 validated/invalidated/open，中文简洁。",
+            user,
+        )
+        if raw.get("assumption_results"):
+            assumption_results = raw["assumption_results"]
+        if raw.get("what_went_right"):
+            right = raw["what_went_right"]
+        if raw.get("what_went_wrong"):
+            wrong = raw["what_went_wrong"]
+        if raw.get("outcome_summary"):
+            summary = raw["outcome_summary"]
+    except Exception:
+        pass
+    return assumption_results, right, wrong, summary
+
+
 def list_open_decisions(db: Session, portfolio_id: UUID | None = None) -> list:
     q = (
         select(Decision)
@@ -167,6 +204,10 @@ def review_decision(db: Session, decision_id: UUID) -> tuple[DecisionOutcome, st
         f"{decision.security.name} {decision.action.value} 决策复盘："
         f"入场 {meta.get('entry_price')} → 现价 {meta.get('exit_price')}，"
         f"收益 {ret}%（数据源：{meta.get('price_source')}）。"
+    )
+
+    assumption_results, right, wrong, summary = _maybe_enrich_review_llm(
+        db, decision, assumption_results, right, wrong, summary, ret, meta
     )
 
     existing = db.scalar(

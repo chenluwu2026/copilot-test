@@ -3,6 +3,8 @@ import { NavChart } from "@/components/NavChart";
 import { Card } from "@/components/Card";
 import { DashboardActionCenter } from "@/components/DashboardActionCenter";
 import { DashboardEventReview } from "@/components/DashboardEventReview";
+import { DashboardQualityMetrics } from "@/components/DashboardQualityMetrics";
+import { QuickStartGuide } from "@/components/QuickStartGuide";
 import { api } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
@@ -27,16 +29,26 @@ export default async function DashboardPage() {
     actions = null;
   }
   let memories: { title: string; content: string }[] = [];
+  let metrics: Awaited<ReturnType<typeof api.dashboardMetrics>> | null = null;
   try {
     const mem = await api.memories();
     memories = mem.filter((m) => m.active).slice(0, 2);
   } catch {
     memories = [];
   }
+  try {
+    metrics = await api.dashboardMetrics(p.id);
+  } catch {
+    metrics = null;
+  }
 
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">Dashboard</h1>
+
+      <QuickStartGuide />
+
+      <DashboardQualityMetrics metrics={metrics} />
 
       <section>
         <h2 className="mb-2 text-sm font-medium text-gray-400">今日待办</h2>

@@ -9,11 +9,15 @@ export function getApiBase(): string {
 
 function apiHeaders(init?: RequestInit): HeadersInit {
   const key = process.env.NEXT_PUBLIC_API_KEY;
-  return {
+  const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(key ? { "X-API-Key": key } : {}),
-    ...init?.headers,
   };
+  if (typeof window !== "undefined") {
+    const token = window.localStorage.getItem("aims_token");
+    if (token) headers.Authorization = `Bearer ${token}`;
+  }
+  return { ...headers, ...(init?.headers as Record<string, string> | undefined) };
 }
 
 async function fetchApi<T>(path: string, init?: RequestInit): Promise<T> {
@@ -186,6 +190,11 @@ export const api = {
     }),
   syncJob: (id: string) => fetchApi<SyncJob>(`/data/sync/jobs/${id}`),
   syncJobs: () => fetchApi<SyncJob[]>(`/data/sync/jobs`),
+  syncNews: (maxSymbols?: number) =>
+    fetchApi<{ ingested: number; symbols_scanned: number; errors: string[] }>(
+      `/data/sync/news${maxSymbols ? `?max_symbols=${maxSymbols}` : ""}`,
+      { method: "POST" }
+    ),
   dataQuality: () => fetchApi<DataQualityReport>("/data/quality"),
   agentConfig: () => fetchApi<AgentConfig>("/agents/config"),
 
@@ -204,6 +213,15 @@ export const api = {
 
   dashboardActions: (portfolioId: string) =>
     fetchApi<DashboardActions>(`/dashboard/actions?portfolio_id=${portfolioId}`),
+
+  dashboardMetrics: (portfolioId: string) =>
+    fetchApi<QualityMetrics>(`/dashboard/metrics?portfolio_id=${portfolioId}`),
+
+  login: (email: string, password: string) =>
+    fetchApi<{ access_token: string; email: string }>("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    }),
 
   decisionProvenance: (decisionId: string) =>
     fetchApi<DecisionProvenance>(`/decisions/${decisionId}/provenance`),
@@ -486,6 +504,24 @@ export type AgentConfig = {
   cio_decision_mode?: string;
   event_research_refresh_enabled?: boolean;
   daily_report_cron_enabled?: boolean;
+  review_cron_enabled?: boolean;
+  review_cron_time?: string;
+  news_sync_cron_enabled?: boolean;
+  news_sync_cron_time?: string;
+  auth_password_configured?: boolean;
+  alembic_upgrade_on_start?: boolean;
+};
+
+export type QualityMetrics = {
+  portfolio_id: string;
+  draft_count: number;
+  approved_count: number;
+  executed_count: number;
+  approval_rate_pct: number;
+  reference_coverage_pct: number;
+  rebalance_runs: number;
+  llm_cio_run_pct: number;
+  agent_mode_hint: string;
 };
 
 export type RiskDashboard = {

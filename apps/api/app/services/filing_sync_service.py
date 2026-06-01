@@ -127,7 +127,7 @@ def sync_filings(
             inserted += 1
             if auto_structure and _should_structure(n["filing_type"], n["title"]):
                 try:
-                    _, ev = ingest_news(
+                    _, ev, _ = ingest_news(
                         db,
                         n["title"],
                         n.get("raw_content") or n["title"],

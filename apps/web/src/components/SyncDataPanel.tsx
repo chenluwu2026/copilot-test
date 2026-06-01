@@ -24,7 +24,9 @@ export function SyncDataPanel() {
     router.refresh();
   }
 
-  async function run(kind: "quotes" | "filings" | "financials" | "all" | "all_async") {
+  async function run(
+    kind: "quotes" | "filings" | "financials" | "news" | "all" | "all_async"
+  ) {
     setLoading(kind);
     setMsg("");
     try {
@@ -32,6 +34,7 @@ export function SyncDataPanel() {
       if (kind === "quotes") res = await api.syncQuotes();
       else if (kind === "filings") res = await api.syncFilings();
       else if (kind === "financials") res = await api.syncFinancials();
+      else if (kind === "news") res = await api.syncNews();
       else if (kind === "all_async") {
         res = await api.syncAllAsync();
         const jobId = res.job_id as string;
@@ -71,6 +74,13 @@ export function SyncDataPanel() {
           className="rounded border border-aims-border px-3 py-2 text-sm disabled:opacity-50"
         >
           {loading === "financials" ? "同步中…" : "同步财报"}
+        </button>
+        <button
+          onClick={() => run("news")}
+          disabled={!!loading}
+          className="rounded border border-aims-border px-3 py-2 text-sm disabled:opacity-50"
+        >
+          {loading === "news" ? "同步中…" : "同步资讯"}
         </button>
         <button
           onClick={() => run("all")}

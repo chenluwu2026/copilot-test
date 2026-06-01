@@ -11,6 +11,7 @@ from app.models import DataSyncJob, FinancialReport, Portfolio, Security, SyncJo
 from app.services.data_quality_service import get_data_quality
 from app.services.filing_sync_service import list_filings, sync_filings, sync_financials
 from app.services.market_data_service import get_bars, sync_quotes
+from app.services.news_sync_service import sync_news_for_watchlist
 from app.services.sync_runner import start_sync_all_background
 from app.services.user_context import get_default_user
 
@@ -55,6 +56,19 @@ def sync_filings_endpoint(body: SyncRequest, db: Session = Depends(get_db)):
 def sync_financials_endpoint(body: SyncRequest, db: Session = Depends(get_db)):
     try:
         return sync_financials(db, body.security_ids)
+    except Exception as e:
+        raise HTTPException(500, str(e)) from e
+
+
+@router.post("/sync/news")
+def sync_news_endpoint(
+    max_symbols: int | None = Query(default=None, ge=1, le=50),
+    db: Session = Depends(get_db),
+):
+    """关注池个股资讯入库并结构化（方案 C）。"""
+    try:
+        user = get_default_user(db)
+        return sync_news_for_watchlist(db, user.id, max_symbols=max_symbols)
     except Exception as e:
         raise HTTPException(500, str(e)) from e
 

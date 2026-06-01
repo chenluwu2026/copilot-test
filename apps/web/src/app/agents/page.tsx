@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AgentConfigPanel } from "@/components/AgentConfigPanel";
 import { Card } from "@/components/Card";
 import { api } from "@/lib/api";
 
@@ -18,13 +19,7 @@ export default async function AgentsPage() {
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">Agent 运行</h1>
-      {cfg && (
-        <p className="text-sm text-gray-400">
-          模式 {cfg.agent_mode}
-          {cfg.llm_active ? ` · LLM ${cfg.llm_model}` : ""} · CIO {cfg.cio_decision_mode} ·
-          事件→研究 {cfg.event_research_refresh_enabled ? "开" : "关"}
-        </p>
-      )}
+      {cfg && <AgentConfigPanel cfg={cfg} />}
       <Card title="最近工作流">
         <ul className="space-y-2 text-sm">
           {runs.map((r) => (
