@@ -5,8 +5,12 @@ from uuid import UUID
 
 from app.database import SessionLocal
 from app.models import DataSyncJob, Portfolio, SyncJobStatus, SyncJobType
+from app.config import settings
 from app.services.filing_sync_service import sync_filings, sync_financials
 from app.services.market_data_service import sync_quotes
+from app.services.nav_service import record_nav_snapshot
+from app.services.portfolio_service import refresh_portfolio_valuation
+from app.services.report_service import generate_daily_report
 from app.services.user_context import get_default_user
 
 logger = logging.getLogger(__name__)
@@ -28,6 +32,16 @@ def _run_sync_all_job(job_id: UUID, security_ids: list[UUID] | None, days_q: int
         results["quotes"] = sync_quotes(db, security_ids, days_q, pid)
         results["filings"] = sync_filings(db, security_ids, days_f, True)
         results["financials"] = sync_financials(db, security_ids)
+        post_sync: dict = {}
+        if pid and settings.auto_nav_after_sync:
+            refresh_portfolio_valuation(db, pid)
+            snap = record_nav_snapshot(db, pid)
+            post_sync["nav_snapshot"] = snap.snapshot_date.isoformat()
+        if pid and settings.auto_daily_report_after_sync:
+            report = generate_daily_report(db, pid)
+            post_sync["daily_report_id"] = str(report.id)
+        if post_sync:
+            results["post_sync"] = post_sync
         job.status = SyncJobStatus.success
         job.result = results
     except Exception as e:

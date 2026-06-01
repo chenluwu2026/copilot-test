@@ -23,12 +23,20 @@ export default async function DecisionsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">决策日志</h1>
-        <Link
-          href="/decisions/new"
-          className="rounded bg-aims-accent px-4 py-2 text-sm text-white"
-        >
-          新建决策
-        </Link>
+        <div className="flex gap-2">
+          <Link
+            href="/decisions/inbox"
+            className="rounded border border-aims-accent px-4 py-2 text-sm text-aims-accent"
+          >
+            收件箱
+          </Link>
+          <Link
+            href="/decisions/new"
+            className="rounded bg-aims-accent px-4 py-2 text-sm text-white"
+          >
+            新建决策
+          </Link>
+        </div>
       </div>
       <p className="text-sm text-gray-400">
         系统护城河：记录 AI/人工为何调仓，以及假设与复盘条件。

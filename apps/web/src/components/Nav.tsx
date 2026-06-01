@@ -8,11 +8,13 @@ const links = [
   { href: "/portfolio", label: "组合" },
   { href: "/watchlist", label: "股票池" },
   { href: "/decisions", label: "决策日志" },
+  { href: "/decisions/inbox", label: "收件箱" },
   { href: "/research", label: "研究" },
   { href: "/events", label: "信息流" },
   { href: "/data", label: "数据" },
   { href: "/review", label: "复盘" },
   { href: "/settings", label: "画像" },
+  { href: "/rules", label: "规则" },
 ];
 
 export function Nav() {

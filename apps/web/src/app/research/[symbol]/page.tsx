@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Card } from "@/components/Card";
 import { StructuredEventCard } from "@/components/StructuredEventCard";
 import { GenerateResearchButton } from "@/components/GenerateResearchButton";
+import { ResearchEditor } from "@/components/ResearchEditor";
 import { PriceChart } from "@/components/PriceChart";
 import { api } from "@/lib/api";
 
@@ -219,6 +220,8 @@ export default async function ResearchDetailPage({
           )}
         </div>
       </Card>
+
+      <ResearchEditor data={data} />
 
       {history.length > 0 && (
         <Card title="历史观点版本">

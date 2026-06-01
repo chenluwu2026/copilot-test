@@ -1,5 +1,6 @@
 import { Card } from "@/components/Card";
 import { InvestmentProfileForm } from "@/components/InvestmentProfileForm";
+import { ProfileSuggestionsPanel } from "@/components/ProfileSuggestionsPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,9 @@ export default function SettingsPage() {
       </p>
       <Card title="方法论与约束">
         <InvestmentProfileForm />
+      </Card>
+      <Card title="反馈驱动的画像建议">
+        <ProfileSuggestionsPanel />
       </Card>
     </div>
   );

@@ -1,4 +1,5 @@
 import { DecisionActions } from "@/components/DecisionActions";
+import { DecisionProvenancePanel } from "@/components/DecisionProvenancePanel";
 import { Card } from "@/components/Card";
 import { api } from "@/lib/api";
 
@@ -11,6 +12,12 @@ export default async function DecisionDetailPage({
 }) {
   const d = await api.decision(params.id);
   const portfolios = await api.portfolios();
+  let provenance: Awaited<ReturnType<typeof api.decisionProvenance>> | null = null;
+  try {
+    provenance = await api.decisionProvenance(params.id);
+  } catch {
+    provenance = null;
+  }
 
   return (
     <div className="space-y-4">
@@ -76,6 +83,10 @@ export default async function DecisionDetailPage({
           </ul>
         </Card>
       )}
+
+      <Card title="决策溯源（Agent / 记忆 / 闸门）">
+        <DecisionProvenancePanel data={provenance} />
+      </Card>
 
       <DecisionActions
         decisionId={d.id}

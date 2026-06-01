@@ -30,6 +30,16 @@ export function DecisionActions({
     }
   }
 
+  async function reject() {
+    try {
+      await api.updateDecisionStatus(decisionId, "cancelled");
+      setMsg("已拒绝");
+      router.refresh();
+    } catch (e) {
+      setMsg(String(e));
+    }
+  }
+
   async function execute() {
     try {
       await api.executeDecision(decisionId);
@@ -57,12 +67,20 @@ export function DecisionActions({
       <h3 className="font-medium">操作</h3>
       <div className="flex flex-wrap gap-2">
         {status === "draft" && (
-          <button
-            onClick={approve}
-            className="rounded bg-aims-accent px-4 py-2 text-sm text-white"
-          >
-            批准
-          </button>
+          <>
+            <button
+              onClick={approve}
+              className="rounded bg-aims-accent px-4 py-2 text-sm text-white"
+            >
+              批准
+            </button>
+            <button
+              onClick={reject}
+              className="rounded border border-aims-border px-4 py-2 text-sm text-gray-300"
+            >
+              拒绝
+            </button>
+          </>
         )}
         {status === "approved" && canTrade && (
           <button

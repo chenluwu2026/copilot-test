@@ -56,6 +56,39 @@ cd /opt/aims/copilot-test
 bash scripts/deploy.sh
 ```
 
+### Windows 本地（Docker Desktop）
+
+首次克隆与启动：
+
+```powershell
+git clone https://github.com/chenluwu2026/copilot-test.git
+cd copilot-test
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+浏览器打开：**http://localhost:8080**
+
+**拉取 main 最新代码后更新**（保留数据库 volume）：
+
+```powershell
+cd D:\AIMS\copilot-test   # 你的实际路径
+git checkout main
+git pull origin main
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+验证：`docker compose -f docker-compose.prod.yml ps`，访问 `http://localhost:8080/health` 或通过 Caddy 打开首页。
+
+可选环境变量（`docker-compose.prod.yml` 的 `api` 服务 `environment`）：
+
+| 变量 | 说明 |
+|------|------|
+| `DATA_SYNC_CRON_ENABLED=true` | 每日自动同步行情/公告 |
+| `AUTO_NAV_AFTER_SYNC=true` | 同步成功后自动记净值点 |
+| `AUTO_DAILY_REPORT_AFTER_SYNC=true` | 同步成功后生成日报 |
+| `REBALANCE_CRON_ENABLED=true` | 定时生成 CIO 调仓草案（不自动成交） |
+| `AGENT_MODE=llm` + `OPENAI_API_KEY` | 启用 LLM CIO |
+
 ### 自动部署（push 到 main 即更新 VPS）
 
 **我（Cloud Agent）无法直接登录你的云服务器**，除非你把 SSH 私钥临时提供到对话里（不推荐）。推荐用 **GitHub Actions** 在你 push 后自动 SSH 部署——配置一次，之后每次合并 `main` 都会重建容器。

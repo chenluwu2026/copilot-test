@@ -125,6 +125,13 @@ def activate_memory(db: Session, memory_id: UUID, create_rule: bool = True) -> M
         if not existing:
             machine = {"type": "note", "memory_id": str(m.id)}
             if m.memory_type == MemoryType.anti_pattern:
+                machine = {
+                    "type": "ban_action",
+                    "action": "add",
+                    "memory_id": str(m.id),
+                    "sectors": m.tags or [],
+                }
+            elif m.memory_type == MemoryType.lesson:
                 machine = {"type": "require_extra_review", "memory_id": str(m.id)}
             db.add(
                 StrategyRule(
