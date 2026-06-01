@@ -52,6 +52,30 @@ export function DecisionInboxTable({
     }
   }
 
+  async function execute(id: string, action: string) {
+    setLoading(`exec-${id}`);
+    try {
+      const res = await api.executeDecision(id);
+      if (res.message) {
+        alert(res.message);
+      }
+      router.refresh();
+    } catch (e) {
+      alert(String(e));
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  function executeLabel(action: string, current: number, target: number) {
+    const noChange =
+      action === "hold" ||
+      action === "watch" ||
+      action === "ban" ||
+      Math.abs(target - current) < 0.01;
+    return noChange ? "确认" : "执行";
+  }
+
   if (!sorted.length) {
     return <p className="text-sm text-gray-500">收件箱为空</p>;
   }
@@ -112,11 +136,16 @@ export function DecisionInboxTable({
               {d.status === "approved" && (
                 <button
                   type="button"
-                  onClick={() => api.executeDecision(d.id).then(() => router.refresh())}
+                  onClick={() => execute(d.id, d.action)}
                   disabled={!!loading}
                   className="text-aims-accent"
+                  title={
+                    d.action === "hold" || d.current_weight_pct === d.target_weight_pct
+                      ? "维持仓位，确认后标记为已处理"
+                      : undefined
+                  }
                 >
-                  执行
+                  {executeLabel(d.action, d.current_weight_pct, d.target_weight_pct)}
                 </button>
               )}
             </td>

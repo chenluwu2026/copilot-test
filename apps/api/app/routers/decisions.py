@@ -134,6 +134,12 @@ def execute_decision(decision_id: UUID, body: DecisionExecute, db: Session = Dep
     try:
         price = Decimal(str(body.price)) if body.price else None
         trade = ps.execute_decision(db, decision_id, price)
+        if trade is None:
+            return {
+                "trade_id": None,
+                "status": "executed",
+                "message": "已确认，无需成交",
+            }
         return {"trade_id": str(trade.id), "status": "executed"}
     except ValueError as e:
         raise HTTPException(400, str(e)) from e

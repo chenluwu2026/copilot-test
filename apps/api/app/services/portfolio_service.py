@@ -232,7 +232,17 @@ def get_portfolio_summary(db: Session, portfolio_id: UUID) -> dict:
     }
 
 
-def execute_decision(db: Session, decision_id: UUID, price: Decimal | None = None) -> Trade:
+def _mark_decision_executed_no_trade(db: Session, decision: Decision, note: str) -> None:
+    """hold/watch/无仓位变化：确认决策，不产生成交记录。"""
+    decision.status = DecisionStatus.executed
+    decision.executed_at = datetime.now(timezone.utc)
+    summary = dict(decision.cio_summary or {})
+    summary["execution_note"] = note
+    decision.cio_summary = summary
+    db.commit()
+
+
+def execute_decision(db: Session, decision_id: UUID, price: Decimal | None = None) -> Trade | None:
     decision = db.scalar(
         select(Decision)
         .where(Decision.id == decision_id)
@@ -242,8 +252,16 @@ def execute_decision(db: Session, decision_id: UUID, price: Decimal | None = Non
         raise ValueError("决策不存在")
     if decision.status != DecisionStatus.approved:
         raise ValueError("仅 approved 状态可执行")
-    if decision.action in (DecisionAction.hold, DecisionAction.watch, DecisionAction.ban):
-        raise ValueError("该动作无需成交")
+
+    no_trade_actions = (DecisionAction.hold, DecisionAction.watch, DecisionAction.ban)
+    weight_unchanged = abs(float(decision.delta_weight_pct or 0)) < 0.01
+    if decision.action in no_trade_actions or weight_unchanged:
+        _mark_decision_executed_no_trade(
+            db,
+            decision,
+            note=f"已确认（{decision.action.value}，无调仓）",
+        )
+        return None
 
     security = decision.security
     portfolio = decision.portfolio
@@ -260,9 +278,8 @@ def execute_decision(db: Session, decision_id: UUID, price: Decimal | None = Non
     delta_value = target_value - current_value
 
     if abs(delta_value) < Decimal("1"):
-        decision.status = DecisionStatus.executed
-        db.commit()
-        raise ValueError("仓位变化过小，无需交易")
+        _mark_decision_executed_no_trade(db, decision, note="已确认（目标仓位与当前一致，无成交）")
+        return None
 
     quantity = abs(delta_value / price).quantize(Decimal("1"))
     if security.market.value == "HK":
