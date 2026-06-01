@@ -15,7 +15,7 @@ export function RebalanceButton({ portfolioId }: { portfolioId: string }) {
     try {
       const res = await api.runRebalance(portfolioId);
       setMsg(`已生成 ${res.decision_ids.length} 条决策草稿`);
-      router.push("/decisions");
+      router.push("/decisions/inbox");
       router.refresh();
     } catch (e) {
       setMsg(String(e));

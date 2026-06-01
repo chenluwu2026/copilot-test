@@ -184,7 +184,11 @@ def ingest_news(
     db.commit()
     db.refresh(article)
     db.refresh(event)
-    return article, event
+
+    from app.services.event_research_integration import maybe_refresh_research_after_event
+
+    research_refreshed = maybe_refresh_research_after_event(db, event)
+    return article, event, research_refreshed
 
 
 def event_to_dict(event: StructuredEvent, article: NewsArticle | None = None) -> dict:

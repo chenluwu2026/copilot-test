@@ -6,6 +6,8 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.services import event_service
+from app.models import StructuredEvent
+from app.services.event_research_integration import refresh_research_for_event
 from app.services.structuring_service import ingest_news
 
 router = APIRouter(prefix="/events", tags=["events"])
@@ -41,10 +43,19 @@ def get_event(event_id: UUID, db: Session = Depends(get_db)):
     return ev
 
 
+@router.post("/{event_id}/refresh-research")
+def refresh_research_for_event_route(event_id: UUID, db: Session = Depends(get_db)):
+    ev = db.get(StructuredEvent, event_id)
+    if not ev:
+        raise HTTPException(404, "事件不存在")
+    symbols = refresh_research_for_event(db, ev)
+    return {"event_id": str(event_id), "refreshed_symbols": symbols}
+
+
 @router.post("/ingest")
 def ingest(body: NewsIngest, db: Session = Depends(get_db)):
     try:
-        article, event = ingest_news(
+        article, event, research_refreshed = ingest_news(
             db,
             body.title,
             body.body,
@@ -55,6 +66,7 @@ def ingest(body: NewsIngest, db: Session = Depends(get_db)):
         return {
             "article_id": str(article.id),
             "event_id": str(event.id),
+            "research_refreshed": research_refreshed,
         }
     except Exception as e:
         raise HTTPException(400, str(e)) from e

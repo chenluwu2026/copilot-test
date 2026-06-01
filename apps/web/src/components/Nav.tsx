@@ -13,6 +13,7 @@ const links = [
   { href: "/events", label: "信息流" },
   { href: "/data", label: "数据" },
   { href: "/review", label: "复盘" },
+  { href: "/agents", label: "Agent" },
   { href: "/settings", label: "画像" },
   { href: "/rules", label: "规则" },
 ];

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Card } from "@/components/Card";
+import { WatchlistEditor } from "@/components/WatchlistEditor";
 import { api } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
@@ -12,10 +13,12 @@ const tierLabel: Record<string, string> = {
 
 export default async function WatchlistPage() {
   const lists = await api.watchlists();
+  const securities = await api.securities();
 
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">股票池</h1>
+      <WatchlistEditor lists={lists} securities={securities} />
       {lists.map((wl) => (
         <Card key={wl.id} title={wl.name}>
           <table className="w-full text-left text-sm">

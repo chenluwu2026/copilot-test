@@ -37,6 +37,12 @@ export const api = {
   portfolioTrades: (id: string) => fetchApi<Trade[]>(`/portfolios/${id}/trades`),
   createTrade: (id: string, body: object) =>
     fetchApi<Trade>(`/portfolios/${id}/trades`, { method: "POST", body: JSON.stringify(body) }),
+  getDailyReport: (id: string, reportDate?: string) => {
+    const q = reportDate ? `?report_date=${reportDate}` : "";
+    return fetchApi<{ summary_md: string; metrics: Record<string, number> }>(
+      `/portfolios/${id}/reports/daily${q}`
+    );
+  },
   dailyReport: (id: string) =>
     fetchApi<{ summary_md: string; metrics: Record<string, number> }>(
       `/portfolios/${id}/reports/daily`,
@@ -76,6 +82,19 @@ export const api = {
     fetchApi(`/decisions/${id}/feedback`, { method: "POST", body: JSON.stringify(body) }),
 
   watchlists: () => fetchApi<Watchlist[]>("/watchlists"),
+  createWatchlist: (body: { name: string; description?: string }) =>
+    fetchApi<{ id: string; name: string }>("/watchlists", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  addWatchlistItem: (
+    watchlistId: string,
+    body: { security_id: string; tier: string; thesis_summary?: string }
+  ) =>
+    fetchApi<{ id: string }>(`/watchlists/${watchlistId}/items`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
 
   events: (params?: Record<string, string>) => {
     const q = new URLSearchParams(params).toString();
@@ -83,9 +102,13 @@ export const api = {
   },
   event: (id: string) => fetchApi<StructuredEvent>(`/events/${id}`),
   ingestNews: (body: object) =>
-    fetchApi<{ event_id: string }>("/events/ingest", {
+    fetchApi<{ event_id: string; research_refreshed?: string[] }>("/events/ingest", {
       method: "POST",
       body: JSON.stringify(body),
+    }),
+  refreshEventResearch: (eventId: string) =>
+    fetchApi<{ refreshed_symbols: string[] }>(`/events/${eventId}/refresh-research`, {
+      method: "POST",
     }),
 
   researchList: () => fetchApi<ResearchSummary[]>("/research"),
@@ -457,6 +480,9 @@ export type AgentConfig = {
   llm_active: boolean;
   llm_model: string | null;
   data_sync_cron_enabled: boolean;
+  cio_decision_mode?: string;
+  event_research_refresh_enabled?: boolean;
+  daily_report_cron_enabled?: boolean;
 };
 
 export type RiskDashboard = {

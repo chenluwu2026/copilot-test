@@ -77,3 +77,24 @@ def generate_daily_report(db: Session, portfolio_id: UUID, report_date: date | N
     db.commit()
     db.refresh(report)
     return report
+
+
+def get_daily_report(
+    db: Session,
+    portfolio_id: UUID,
+    report_date: date | None = None,
+    *,
+    create_if_missing: bool = False,
+) -> DailyPortfolioReport | None:
+    report_date = report_date or date.today()
+    report = db.scalar(
+        select(DailyPortfolioReport).where(
+            DailyPortfolioReport.portfolio_id == portfolio_id,
+            DailyPortfolioReport.report_date == report_date,
+        )
+    )
+    if report:
+        return report
+    if create_if_missing:
+        return generate_daily_report(db, portfolio_id, report_date)
+    return None

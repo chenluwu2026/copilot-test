@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { StructuredEvent } from "@/lib/api";
+import { EventResearchActions } from "@/components/EventResearchActions";
 
 const impactColor: Record<string, string> = {
   positive: "text-aims-positive",
@@ -55,14 +56,10 @@ export function StructuredEventCard({ event }: { event: StructuredEvent }) {
           </ul>
         </div>
       )}
-      {event.companies[0]?.symbol && (
-        <Link
-          href={`/research/${encodeURIComponent(event.companies[0].symbol)}`}
-          className="mt-2 inline-block text-xs text-aims-accent"
-        >
-          查看研究 →
-        </Link>
-      )}
+      <EventResearchActions
+        eventId={event.id}
+        symbols={event.companies.map((c) => c.symbol).filter(Boolean)}
+      />
     </article>
   );
 }

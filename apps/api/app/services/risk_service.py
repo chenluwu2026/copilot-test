@@ -82,6 +82,7 @@ def check_risk(
             )
 
     rules = db.scalars(select(StrategyRule).where(StrategyRule.active.is_(True))).all()
+    extra_review_symbols: list[str] = []
     for rule in rules:
         check = rule.machine_check or {}
         code = check.get("type")
@@ -99,6 +100,23 @@ def check_risk(
                         }
                     )
                     p["weight_pct"] = 0
+        elif code == "require_extra_review":
+            sectors = check.get("sectors", [])
+            symbols = check.get("symbols", [])
+            for p in proposed_weights:
+                sec = db.get(Security, UUID(p["security_id"]))
+                if not sec or float(p["weight_pct"]) <= 0:
+                    continue
+                if sec.symbol in symbols or (sec.sector and sec.sector in sectors):
+                    extra_review_symbols.append(sec.symbol)
+                    violations.append(
+                        {
+                            "code": "REQUIRE_EXTRA_REVIEW",
+                            "rule_code": rule.rule_code,
+                            "message": rule.natural_language or "记忆规则：需额外复核",
+                            "symbol": sec.symbol,
+                        }
+                    )
 
     approved = len(violations) == 0
     return {
@@ -107,6 +125,7 @@ def check_risk(
         "suggestions": suggestions,
         "adjusted_weights": proposed_weights,
         "cash_pct": 100 - sum(float(p["weight_pct"]) for p in proposed_weights),
+        "extra_review_symbols": list(dict.fromkeys(extra_review_symbols)),
     }
 
 

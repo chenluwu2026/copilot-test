@@ -2,6 +2,7 @@ import Link from "next/link";
 import { NavChart } from "@/components/NavChart";
 import { Card } from "@/components/Card";
 import { DashboardActionCenter } from "@/components/DashboardActionCenter";
+import { DashboardEventReview } from "@/components/DashboardEventReview";
 import { api } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
@@ -41,6 +42,10 @@ export default async function DashboardPage() {
         <h2 className="mb-2 text-sm font-medium text-gray-400">今日待办</h2>
         <DashboardActionCenter actions={actions} />
       </section>
+
+      {actions?.event_review_todos && actions.event_review_todos.length > 0 && (
+        <DashboardEventReview todos={actions.event_review_todos} portfolioId={p.id} />
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card title="组合净值">

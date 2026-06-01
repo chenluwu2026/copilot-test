@@ -14,7 +14,7 @@ from app.services.nav_service import (
     record_nav_snapshot,
     reset_nav_snapshots,
 )
-from app.services.report_service import generate_daily_report
+from app.services.report_service import generate_daily_report, get_daily_report
 from app.services.user_context import get_default_user
 
 router = APIRouter(prefix="/portfolios", tags=["portfolios"])
@@ -161,6 +161,26 @@ def reset_nav(portfolio_id: UUID, db: Session = Depends(get_db)):
         "snapshot_date": snap.snapshot_date.isoformat(),
         "nav": float(snap.nav),
         "message": "已重置净值曲线；同步数据后会逐日积累真实快照。",
+    }
+
+
+@router.get("/{portfolio_id}/reports/daily")
+def get_daily_report_route(
+    portfolio_id: UUID,
+    report_date: str | None = None,
+    db: Session = Depends(get_db),
+):
+    from datetime import date as date_type
+
+    d = date_type.fromisoformat(report_date) if report_date else None
+    report = get_daily_report(db, portfolio_id, d, create_if_missing=False)
+    if not report:
+        raise HTTPException(404, "当日暂无日报，请 POST 生成")
+    return {
+        "id": str(report.id),
+        "report_date": report.report_date.isoformat(),
+        "summary_md": report.summary_md,
+        "metrics": report.metrics,
     }
 
 

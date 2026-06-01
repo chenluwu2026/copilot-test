@@ -1,4 +1,4 @@
-"""定时数据同步与 CIO 调仓草案（APScheduler）。"""
+"""定时：数据同步、日报、调仓草案（APScheduler）。"""
 import logging
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -9,6 +9,7 @@ from app.config import settings
 from app.database import SessionLocal
 from app.models import DataSyncJob, Portfolio, SyncJobStatus, SyncJobType
 from app.services.orchestrator import run_rebalance_workflow
+from app.services.report_service import generate_daily_report
 from app.services.sync_runner import start_sync_all_background
 from app.services.user_context import get_default_user
 
@@ -37,6 +38,27 @@ def _scheduled_sync_all():
         db.close()
 
 
+def _scheduled_daily_report():
+    if not settings.daily_report_cron_enabled:
+        return
+    db = SessionLocal()
+    try:
+        user = get_default_user(db)
+        portfolio = db.scalar(select(Portfolio).where(Portfolio.user_id == user.id))
+        if not portfolio:
+            return
+        report = generate_daily_report(db, portfolio.id)
+        logger.info(
+            "scheduled daily report portfolio=%s date=%s",
+            portfolio.id,
+            report.report_date,
+        )
+    except Exception:
+        logger.exception("scheduled daily report failed")
+    finally:
+        db.close()
+
+
 def _scheduled_rebalance_draft():
     if not settings.rebalance_cron_enabled:
         return
@@ -58,9 +80,17 @@ def _scheduled_rebalance_draft():
         db.close()
 
 
+def _any_cron_enabled() -> bool:
+    return (
+        settings.data_sync_cron_enabled
+        or settings.rebalance_cron_enabled
+        or settings.daily_report_cron_enabled
+    )
+
+
 def start_scheduler() -> BackgroundScheduler | None:
     global _scheduler
-    if not settings.data_sync_cron_enabled and not settings.rebalance_cron_enabled:
+    if not _any_cron_enabled():
         return None
     if _scheduler and _scheduler.running:
         return _scheduler
@@ -78,6 +108,20 @@ def start_scheduler() -> BackgroundScheduler | None:
         logger.info(
             "data sync scheduler at %s (%s)",
             settings.data_sync_cron_time,
+            settings.data_sync_cron_tz,
+        )
+
+    if settings.daily_report_cron_enabled:
+        dh, dm = settings.daily_report_cron_time.split(":", 1)
+        _scheduler.add_job(
+            _scheduled_daily_report,
+            CronTrigger(hour=int(dh), minute=int(dm)),
+            id="aims_daily_report",
+            replace_existing=True,
+        )
+        logger.info(
+            "daily report scheduler at %s (%s)",
+            settings.daily_report_cron_time,
             settings.data_sync_cron_tz,
         )
 
