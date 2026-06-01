@@ -192,4 +192,6 @@ def get_agent_config() -> dict:
         "cio_refresh_research": settings.cio_refresh_research,
         "cio_max_symbols": settings.cio_max_symbols,
         "rebalance_cron_chain_after_sync": settings.rebalance_cron_chain_after_sync,
+        "daily_report_cron_enabled": settings.daily_report_cron_enabled,
+        "event_research_refresh_enabled": settings.event_research_refresh_enabled,
     }

@@ -32,6 +32,10 @@ class Settings(BaseSettings):
     rebalance_cron_enabled: bool = False
     rebalance_cron_time: str = "19:00"
     rebalance_cron_chain_after_sync: bool = False
+    daily_report_cron_enabled: bool = False
+    daily_report_cron_time: str = "19:05"
+    event_research_refresh_enabled: bool = True
+    event_research_refresh_force_draft: bool = False
     cron_secret: str | None = None
     # CIO 证据驱动决策
     cio_decision_mode: str = "batch"  # batch | per_symbol

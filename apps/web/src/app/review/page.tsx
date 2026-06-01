@@ -7,6 +7,7 @@ import { MemoryPanel } from "@/components/MemoryPanel";
 import { ReviewBoard } from "@/components/ReviewBoard";
 import { ReviewPendingMemoryPanel } from "@/components/ReviewPendingMemoryPanel";
 import { ReviewSummaryBanner } from "@/components/ReviewSummaryBanner";
+import { DailyReportPanel } from "@/components/DailyReportPanel";
 import { api } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
@@ -25,7 +26,7 @@ export default async function ReviewPage() {
 
   if (pid) {
     try {
-      const r = await api.dailyReport(pid);
+      const r = await api.getDailyReport(pid);
       reportMd = r.summary_md;
     } catch {
       reportMd = "";
@@ -92,9 +93,11 @@ export default async function ReviewPage() {
         </ul>
       </Card>
 
-      <Card title="每日组合日报">
-        <pre className="whitespace-pre-wrap text-sm text-gray-300">{reportMd}</pre>
-      </Card>
+      {pid && (
+        <Card title="每日组合日报">
+          <DailyReportPanel portfolioId={pid} initialMd={reportMd} />
+        </Card>
+      )}
     </div>
   );
 }
