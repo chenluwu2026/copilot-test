@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -12,6 +12,10 @@ from app.services.review_reminder_service import (
     promote_or_activate_memory,
     review_summary,
 )
+from app.services.backtest_quality_service import backtest_quality_report
+from app.services.execution_quality_service import execution_quality_report
+from app.services.retrospective_service import generate_monthly_retrospective
+from app.services.review_quality_service import build_review_quality
 from app.services.review_service import (
     attribution_report,
     backtest_decisions,
@@ -50,6 +54,7 @@ def open_decisions(portfolio_id: UUID | None = None, db: Session = Depends(get_d
 def run_review(decision_id: UUID, db: Session = Depends(get_db)):
     try:
         o, memory_id = review_decision(db, decision_id)
+        quality = build_review_quality(db, decision_id, memory_id=memory_id)
         return {
             "decision_id": str(o.decision_id),
             "return_since_decision_pct": float(o.return_since_decision_pct or 0),
@@ -59,9 +64,38 @@ def run_review(decision_id: UUID, db: Session = Depends(get_db)):
             "assumption_results": o.assumption_results,
             "price_metadata": o.price_metadata or {},
             "memory_id": memory_id,
+            "review_quality": quality,
         }
     except ValueError as e:
         raise HTTPException(404, str(e)) from e
+
+
+@router.get("/decisions/{decision_id}/quality")
+def review_quality(decision_id: UUID, db: Session = Depends(get_db)):
+    try:
+        return build_review_quality(db, decision_id)
+    except ValueError as e:
+        raise HTTPException(404, str(e)) from e
+
+
+@router.get("/retrospective/{portfolio_id}")
+def monthly_retrospective(
+    portfolio_id: UUID,
+    year: int | None = Query(None),
+    month: int | None = Query(None),
+    db: Session = Depends(get_db),
+):
+    return generate_monthly_retrospective(db, portfolio_id, year=year, month=month)
+
+
+@router.get("/backtest-quality/{portfolio_id}")
+def backtest_quality(portfolio_id: UUID, db: Session = Depends(get_db)):
+    return backtest_quality_report(db, portfolio_id)
+
+
+@router.get("/execution-quality/{portfolio_id}")
+def execution_quality(portfolio_id: UUID, db: Session = Depends(get_db)):
+    return execution_quality_report(db, portfolio_id)
 
 
 @router.post("/decisions/{decision_id}/memory")

@@ -17,6 +17,20 @@
 | Agent | `/agents/config/health`、调仓 trace |
 | 产品化 | mock 横幅、高级折叠、部署 FAQ |
 
+## 质量提升（Phase A–C，已落地）
+
+| 阶段 | API / UI | 说明 |
+|------|----------|------|
+| A | `GET /research/symbol/{sym}/quality`、研究页质量面板 | 十段式完成度、闸门、情景 |
+| A | `GET /decisions/{id}/coverage`、决策页卷宗对照 | 卷宗 vs CIO 覆盖度 |
+| A | 复盘 `review_quality`、`GET /review/retrospective/{pid}` | 复盘清单、月度 Markdown |
+| A | `test_golden_path_e2e.py` | seed + onboarding 全绿 E2E |
+| B | `POST /data/ingest/financial-text` | 财报/公告文本 → 指标入库 |
+| B | `memory_tier` + `embedding`、MEM-VEC 检索 | 分层记忆 + 本地向量相似度 |
+| B | `examples/golden_path_fixtures.json` | CIO 评测 fixture |
+| C | `symbol_attribution`、回测/执行质量 API | 归因增强、过拟合提示、滑点 |
+| C | `GET /scenarios`、组合页宏观情景 | 静态情景库 |
+
 ## 二期 backlog（XL，不阻塞当前发布）
 
 | ID | 项 | 说明 |

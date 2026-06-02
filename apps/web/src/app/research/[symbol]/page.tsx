@@ -3,6 +3,7 @@ import { Card } from "@/components/Card";
 import { StructuredEventCard } from "@/components/StructuredEventCard";
 import { GenerateResearchButton } from "@/components/GenerateResearchButton";
 import { ResearchEditor } from "@/components/ResearchEditor";
+import { ResearchQualityPanel } from "@/components/ResearchQualityPanel";
 import { PriceChart } from "@/components/PriceChart";
 import { api } from "@/lib/api";
 
@@ -82,6 +83,13 @@ export default async function ResearchDetailPage({
     bars = [];
   }
 
+  let researchQuality: Awaited<ReturnType<typeof api.researchQuality>> | null = null;
+  try {
+    researchQuality = await api.researchQuality(symbol);
+  } catch {
+    researchQuality = null;
+  }
+
   let factorRow = null;
   try {
     const portfolios = await api.portfolios();
@@ -128,6 +136,12 @@ export default async function ResearchDetailPage({
           </Link>
         </div>
       </div>
+
+      {researchQuality && (
+        <Card title="研究质量">
+          <ResearchQualityPanel quality={researchQuality} />
+        </Card>
+      )}
 
       <Card title="投资结论">
         <p className="text-sm leading-relaxed">{latest.investment_conclusion}</p>

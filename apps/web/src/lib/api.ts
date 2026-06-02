@@ -120,6 +120,8 @@ export const api = {
 
   researchList: () => fetchApi<ResearchSummary[]>("/research"),
   researchBySymbol: (symbol: string) => fetchApi<ResearchDetail>(`/research/symbol/${symbol}`),
+  researchQuality: (symbol: string) =>
+    fetchApi<ResearchQuality>(`/research/symbol/${encodeURIComponent(symbol)}/quality`),
   generateResearchDraft: (securityId: string) =>
     fetchApi(`/research/${securityId}/generate-draft`, { method: "POST" }),
 
@@ -150,11 +152,21 @@ export const api = {
       `/review/open-decisions${portfolioId ? `?portfolio_id=${portfolioId}` : ""}`
     ),
   runReview: (decisionId: string) =>
-    fetchApi<{
-      memory_id?: string;
-      return_since_decision_pct: number;
-      price_metadata?: Record<string, unknown>;
-    }>(`/review/decisions/${decisionId}/run`, { method: "POST" }),
+    fetchApi<ReviewRunResult>(`/review/decisions/${decisionId}/run`, { method: "POST" }),
+  monthlyRetrospective: (portfolioId: string, year?: number, month?: number) => {
+    const params = new URLSearchParams();
+    if (year) params.set("year", String(year));
+    if (month) params.set("month", String(month));
+    const q = params.toString();
+    return fetchApi<MonthlyRetrospective>(
+      `/review/retrospective/${portfolioId}${q ? `?${q}` : ""}`
+    );
+  },
+  backtestQuality: (portfolioId: string) =>
+    fetchApi<BacktestQualityReport>(`/review/backtest-quality/${portfolioId}`),
+  executionQuality: (portfolioId: string) =>
+    fetchApi<ExecutionQualityReport>(`/review/execution-quality/${portfolioId}`),
+  macroScenarios: () => fetchApi<{ scenarios: MacroScenario[] }>("/scenarios"),
   promoteReviewMemory: (decisionId: string, body?: { title?: string; activate?: boolean }) =>
     fetchApi<{ memory_id: string }>(`/review/decisions/${decisionId}/memory`, {
       method: "POST",
@@ -240,6 +252,8 @@ export const api = {
 
   decisionProvenance: (decisionId: string) =>
     fetchApi<DecisionProvenance>(`/decisions/${decisionId}/provenance`),
+  decisionCoverage: (decisionId: string) =>
+    fetchApi<DecisionCoverage>(`/decisions/${decisionId}/coverage`),
 
   createResearch: (body: object) =>
     fetchApi<ResearchViewDetail>("/research", { method: "POST", body: JSON.stringify(body) }),
@@ -656,8 +670,90 @@ export type OpenDecision = {
   pending_memory_id?: string | null;
 };
 
+export type ResearchQuality = {
+  symbol: string;
+  found: boolean;
+  has_view?: boolean;
+  completion_pct?: number;
+  sections?: Record<string, boolean>;
+  has_scenarios?: boolean;
+  age_days?: number | null;
+  quality_score?: number;
+  quality_grade?: string;
+  issues?: string[];
+  gate?: { research_allowed: boolean; reason?: string };
+};
+
+export type DecisionCoverage = {
+  decision_id: string;
+  symbol: string;
+  coverage_pct: number;
+  checks: { label: string; covered: boolean; detail: string }[];
+  evidence_grade?: string;
+  evidence_score?: number;
+  evidence_issues?: string[];
+};
+
+export type ReviewQuality = {
+  decision_id: string;
+  symbol: string;
+  checklist: { item: string; ok: boolean; detail: string }[];
+  quality_pct: number;
+  memory_id?: string | null;
+};
+
+export type ReviewRunResult = {
+  memory_id?: string;
+  return_since_decision_pct: number;
+  outcome_summary?: string;
+  price_metadata?: Record<string, unknown>;
+  review_quality?: ReviewQuality;
+};
+
+export type MonthlyRetrospective = {
+  portfolio_id: string;
+  year: number;
+  month: number;
+  summary_md: string;
+  stats: Record<string, number>;
+};
+
+export type BacktestQualityReport = {
+  sample_size: number;
+  sharpe?: number | null;
+  deflated_sharpe_hint?: number | null;
+  overfitting_risk: string;
+  message: string;
+};
+
+export type ExecutionQualityReport = {
+  portfolio_id: string;
+  items: {
+    decision_id: string;
+    symbol: string;
+    slippage_vs_hint_pct?: number | null;
+    quality_flag: string;
+  }[];
+  flagged_count: number;
+  summary: string;
+};
+
+export type MacroScenario = {
+  id: string;
+  name: string;
+  description: string;
+  tilts: Record<string, number>;
+  watchlist_actions?: string[];
+};
+
 export type AttributionReport = {
   sector_attribution: { sector: string; unrealized_pnl: number; contribution_pct: number }[];
+  symbol_attribution?: {
+    symbol: string;
+    unrealized_pnl: number;
+    weight_pct: number;
+    contribution_pct: number;
+  }[];
   decision_stats: {
     reviewed: number;
     avg_return_pct: number;

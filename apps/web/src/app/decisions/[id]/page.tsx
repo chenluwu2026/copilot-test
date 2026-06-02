@@ -1,6 +1,7 @@
 import { DecisionActions } from "@/components/DecisionActions";
 import { AdvancedFold } from "@/components/AdvancedFold";
 import { DecisionProvenancePanel } from "@/components/DecisionProvenancePanel";
+import { DecisionCoveragePanel } from "@/components/DecisionCoveragePanel";
 import { DecisionTimelinePanel } from "@/components/DecisionTimeline";
 import { Card } from "@/components/Card";
 import { api } from "@/lib/api";
@@ -25,6 +26,12 @@ export default async function DecisionDetailPage({
     timeline = await api.decisionTimeline(params.id);
   } catch {
     timeline = null;
+  }
+  let coverage: Awaited<ReturnType<typeof api.decisionCoverage>> | null = null;
+  try {
+    coverage = await api.decisionCoverage(params.id);
+  } catch {
+    coverage = null;
   }
 
   return (
@@ -93,6 +100,12 @@ export default async function DecisionDetailPage({
       )}
 
       <DecisionTimelinePanel timeline={timeline} />
+
+      {coverage && (
+        <Card title="卷宗 vs CIO 对照">
+          <DecisionCoveragePanel data={coverage} />
+        </Card>
+      )}
 
       <AdvancedFold title="决策溯源（Agent / 记忆 / 闸门）" defaultOpen>
         <DecisionProvenancePanel data={provenance} />

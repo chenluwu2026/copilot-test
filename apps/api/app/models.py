@@ -532,10 +532,12 @@ class MemoryEntry(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=new_uuid)
     memory_type: Mapped[MemoryType] = mapped_column(Enum(MemoryType), nullable=False)
+    memory_tier: Mapped[str] = mapped_column(String(32), default="lesson")
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     evidence_decision_ids: Mapped[list] = mapped_column(JSONType, default=list)
     tags: Mapped[list] = mapped_column(JSONType, default=list)
+    embedding: Mapped[list | None] = mapped_column(JSONType, nullable=True)
     confidence: Mapped[Decimal] = mapped_column(Numeric(4, 3), default=Decimal("0.8"))
     active: Mapped[bool] = mapped_column(Boolean, default=False)
     pending: Mapped[bool] = mapped_column(Boolean, default=True)

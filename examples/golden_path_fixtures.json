@@ -1,0 +1,10 @@
+{
+  "description": "CIO 评测 fixture：mock 模式下 dossier 与决策质量断言",
+  "symbols": ["00700.HK", "09988.HK", "600519.SH"],
+  "min_evidence_score": 40,
+  "required_sections": ["business_model", "key_risks", "current_valuation"],
+  "golden_decision": {
+    "symbol": "00700.HK",
+    "cio_summary_keys": ["golden_path", "evidence_grade"]
+  }
+}

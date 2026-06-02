@@ -1,4 +1,5 @@
 import { Card } from "@/components/Card";
+import { MacroScenarioPanel } from "@/components/MacroScenarioPanel";
 import { RebalanceButton } from "@/components/RebalanceButton";
 import { RiskMeter } from "@/components/RiskMeter";
 import { api } from "@/lib/api";
@@ -13,9 +14,12 @@ export default async function PortfolioPage() {
   const trades = await api.portfolioTrades(p.id);
   let risk = null;
   let agentCfg: Awaited<ReturnType<typeof api.agentConfig>> | null = null;
+  let scenarios: Awaited<ReturnType<typeof api.macroScenarios>>["scenarios"] = [];
   try {
     risk = await api.riskDashboard(p.id);
     agentCfg = await api.agentConfig();
+    const sc = await api.macroScenarios();
+    scenarios = sc.scenarios;
   } catch {
     risk = null;
   }
@@ -121,6 +125,12 @@ export default async function PortfolioPage() {
           </tbody>
         </table>
       </Card>
+
+      {scenarios.length > 0 && (
+        <Card title="宏观情景（压力测试参考）">
+          <MacroScenarioPanel scenarios={scenarios} />
+        </Card>
+      )}
     </div>
   );
 }
