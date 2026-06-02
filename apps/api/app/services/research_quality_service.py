@@ -55,7 +55,7 @@ def get_research_quality(db: Session, symbol: str, *, max_age_days: int = 60) ->
             "issues": ["尚无研究观点，请维护十段式或生成草稿"],
         }
 
-    fa = view.fundamental_analysis or {}
+    fa = view.content_structured.get("fundamental_analysis") or {}
     sections = {k: _section_filled(fa, k) for k in SECTION_KEYS}
     filled = sum(1 for v in sections.values() if v)
     completion_pct = round(filled / len(SECTION_KEYS) * 100)

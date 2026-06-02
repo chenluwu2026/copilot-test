@@ -112,6 +112,52 @@ class ResearchQualityTests(unittest.TestCase):
         q = get_research_quality(self.db, "NOPE.SYMBOL")
         self.assertFalse(q["found"])
 
+    def test_with_research_view(self):
+        """get_research_quality 应从 content_structured 读取 fundamental_analysis，而非不存在的属性。"""
+        from decimal import Decimal
+        from app.models import ResearchView, ResearchRating
+        sec = Security(
+            symbol="TEST.QUAL",
+            name="质量测试",
+            market=Market.HK,
+            currency="HKD",
+            sector="科技",
+            lot_size=100,
+            last_price=Decimal("100"),
+        )
+        self.db.add(sec)
+        self.db.commit()
+        fa = {
+            "business_model": "主营业务描述，超过二十字符的内容用于通过完整性检测。",
+            "industry_space": "行业空间描述，超过二十字符的内容用于通过完整性检测。",
+            "competitive_landscape": "竞争格局描述，超过二十字符的内容用于通过完整性检测。",
+            "financial_quality": "财务质量描述，超过二十字符的内容用于通过完整性检测。",
+            "management": "管理层描述，超过二十字符的内容用于通过完整性检测。",
+            "growth_drivers": "增长驱动描述，超过二十字符的内容用于通过完整性检测。",
+            "key_risks": "主要风险描述，超过二十字符的内容用于通过完整性检测。",
+            "current_valuation": "当前估值描述，超过二十字符的内容用于通过完整性检测。",
+        }
+        view = ResearchView(
+            security_id=sec.id,
+            rating=ResearchRating.buy,
+            investment_conclusion="测试投资结论",
+            content_structured={"fundamental_analysis": fa},
+            scenario_analysis={
+                "scenarios": [
+                    {"name": "optimistic", "target_price_low": 120, "target_price_high": 140},
+                    {"name": "pessimistic", "target_price_low": 80, "target_price_high": 95},
+                ]
+            },
+        )
+        self.db.add(view)
+        self.db.commit()
+        q = get_research_quality(self.db, "TEST.QUAL")
+        self.assertTrue(q["found"])
+        self.assertTrue(q["has_view"])
+        self.assertIn("quality_grade", q)
+        self.assertIn("completion_pct", q)
+        self.assertEqual(q["completion_pct"], 100)
+
 
 if __name__ == "__main__":
     unittest.main()
