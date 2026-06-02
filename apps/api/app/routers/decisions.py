@@ -218,6 +218,9 @@ def run_decision_pipeline(body: DecisionPipelineIn, db: Session = Depends(get_db
             portfolio_id=body.portfolio_id,
             candidates=[c.model_dump() for c in body.candidates],
             max_turnover_pct=body.max_turnover_pct,
+            auto_approve=body.auto_approve,
+            auto_execute_simulated=body.auto_execute_simulated,
+            simulated_fill_ratio=body.simulated_fill_ratio,
         )
     except ValueError as e:
         raise HTTPException(400, str(e)) from e

@@ -1,6 +1,7 @@
 import os
 import unittest
 from decimal import Decimal
+from uuid import UUID
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -189,6 +190,26 @@ class DecisionClosedLoopTests(unittest.TestCase):
         self.assertGreaterEqual(len(created), 1)
         self.assertIn("execution_plan", out["results"][0])
         self.assertIn("schedule", out["results"][0]["execution_plan"])
+
+    def test_pipeline_auto_approve_and_simulated_execution(self):
+        out = run_decision_pipeline(
+            self.db,
+            portfolio_id=self.portfolio.id,
+            candidates=[{"security_id": self.sec2.id, "score": 1.0}],
+            max_turnover_pct=30,
+            auto_approve=True,
+            auto_execute_simulated=True,
+            simulated_fill_ratio=0.7,
+        )
+        created = [r for r in out["results"] if r["decision_id"]]
+        self.assertGreaterEqual(len(created), 1)
+        row = created[0]
+        self.assertTrue(row["auto_approved"])
+        self.assertIsNotNone(row["simulated_execution"])
+        self.assertEqual(row["simulated_execution"]["fill_ratio"], 0.7)
+        ledger = get_latest_ledger_by_decision(self.db, UUID(row["decision_id"]))
+        self.assertEqual(ledger.status, DecisionLedgerStatus.filled)
+        self.assertEqual(ledger.execution_result_json.get("mode"), "simulated")
 
 
 if __name__ == "__main__":

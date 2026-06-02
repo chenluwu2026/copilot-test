@@ -4,6 +4,8 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app.models import DecisionAction, Security
+from app.models import DecisionLedgerStatus, DecisionStatus
+from app.services import decision_ledger_service as dls
 from app.services import decision_service as ds
 from app.services import execution_simulator_service as ess
 from app.services import portfolio_construction_service as pcs
@@ -34,6 +36,9 @@ def run_decision_pipeline(
     portfolio_id: UUID,
     candidates: list[dict],
     max_turnover_pct: float = 40,
+    auto_approve: bool = False,
+    auto_execute_simulated: bool = False,
+    simulated_fill_ratio: float = 1.0,
 ) -> dict:
     plan = pcs.construct_target_weights(
         db,
@@ -99,6 +104,41 @@ def run_decision_pipeline(
                 cio_summary=None,
                 created_by_agent="decision_pipeline",
             )
+            auto_approved = False
+            simulated_execution = None
+            if auto_approve:
+                decision = ds.update_decision_status(db, decision.id, DecisionStatus.approved)
+                auto_approved = True
+            if auto_execute_simulated and auto_approved:
+                simulated_execution = ess.simulate_execution(
+                    side=action.value,
+                    quantity=execution_plan["estimated_quantity"],
+                    reference_price=px if px > 0 else 1.0,
+                    adv_notional=adv_notional if adv_notional > 0 else None,
+                    fill_ratio=simulated_fill_ratio,
+                )
+                ledger = dls.get_latest_ledger_by_decision(db, decision.id)
+                if ledger:
+                    try:
+                        dls.transition_ledger(
+                            db,
+                            ledger_id=ledger.id,
+                            to_status=DecisionLedgerStatus.submitted,
+                        )
+                    except ValueError:
+                        pass
+                    try:
+                        dls.transition_ledger(
+                            db,
+                            ledger_id=ledger.id,
+                            to_status=DecisionLedgerStatus.filled,
+                            execution_result_json={
+                                "mode": "simulated",
+                                **simulated_execution,
+                            },
+                        )
+                    except ValueError:
+                        pass
             results.append(
                 {
                     "security_id": item["security_id"],
@@ -110,6 +150,8 @@ def run_decision_pipeline(
                     "target_weight_pct": target_weight,
                     "current_weight_pct": current_weight,
                     "execution_plan": execution_plan,
+                    "auto_approved": auto_approved,
+                    "simulated_execution": simulated_execution,
                 }
             )
         else:

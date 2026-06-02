@@ -144,6 +144,9 @@ class DecisionPipelineIn(BaseModel):
     portfolio_id: UUID
     candidates: list[CandidateWeightIn] = Field(default_factory=list)
     max_turnover_pct: float = 40
+    auto_approve: bool = False
+    auto_execute_simulated: bool = False
+    simulated_fill_ratio: float = 1.0
 
 
 class ExecutionSimulateIn(BaseModel):
