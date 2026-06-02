@@ -287,7 +287,7 @@ def _seed_sample_decisions(db, portfolio_id) -> None:
         ["批价下行", "需求不及预期"],
         ["批价连续两季下行则减仓至5%"],
         [{"text": "直销渠道占比持续提升"}],
-        [{"ref_type": "research", "excerpt": "十段式：批价与渠道库存为核心变量"}],
+        [{"ref_type": "research_report", "excerpt": "十段式：批价与渠道库存为核心变量"}],
         "A-",
         "12个月+",
     )
