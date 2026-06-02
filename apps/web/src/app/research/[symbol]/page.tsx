@@ -83,11 +83,13 @@ export default async function ResearchDetailPage({
     bars = [];
   }
 
-  let researchQuality: Awaited<ReturnType<typeof api.researchQuality>> | null = null;
-  try {
-    researchQuality = await api.researchQuality(symbol);
-  } catch {
-    researchQuality = null;
+  let researchQuality = data.quality ?? null;
+  if (!researchQuality) {
+    try {
+      researchQuality = await api.researchQuality(symbol);
+    } catch {
+      researchQuality = null;
+    }
   }
 
   let factorRow = null;
@@ -137,11 +139,16 @@ export default async function ResearchDetailPage({
         </div>
       </div>
 
-      {researchQuality && (
-        <Card title="研究质量">
+      <Card title="研究质量">
+        {researchQuality ? (
           <ResearchQualityPanel quality={researchQuality} />
-        </Card>
-      )}
+        ) : (
+          <p className="text-sm text-gray-500">
+            质量评分暂不可用。请确认 API 已更新至含 PR #21 的版本，并重建 web/api 容器；也可在浏览器访问{" "}
+            <code className="text-xs">/api/v1/research/symbol/{symbol}/quality</code> 检查是否 404。
+          </p>
+        )}
+      </Card>
 
       <Card title="投资结论">
         <p className="text-sm leading-relaxed">{latest.investment_conclusion}</p>

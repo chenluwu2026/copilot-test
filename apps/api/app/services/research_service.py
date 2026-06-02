@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.config import settings
 from app.models import ResearchRating, ResearchView, ResearchViewType, Security
 from app.services.decision_service import _load_schema
+from app.services.research_quality_service import get_research_quality
 
 
 def validate_research_payload(content: dict, rating: str, security: Security) -> dict:
@@ -60,7 +61,6 @@ def get_research_by_symbol(db: Session, symbol: str) -> dict | None:
     if not views:
         return None
     latest = views[0]
-    events_from_db = []  # filled by router with event service
     return {
         "security": {
             "id": str(sec.id),
@@ -71,6 +71,7 @@ def get_research_by_symbol(db: Session, symbol: str) -> dict | None:
         },
         "latest": _view_detail(latest),
         "history": [_view_detail(v) for v in views[1:6]],
+        "quality": get_research_quality(db, symbol),
     }
 
 

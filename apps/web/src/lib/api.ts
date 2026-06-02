@@ -384,7 +384,8 @@ export type ResearchDetail = {
   security: { id: string; symbol: string; name: string; sector?: string; last_price?: number };
   latest: ResearchViewDetail;
   history: ResearchViewDetail[];
-  related_events: StructuredEvent[];
+  related_events?: StructuredEvent[];
+  quality?: ResearchQuality;
 };
 
 export type AgentRun = {
