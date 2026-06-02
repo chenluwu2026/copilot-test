@@ -148,6 +148,8 @@ class DecisionPipelineIn(BaseModel):
     auto_execute_simulated: bool = False
     simulated_fill_ratio: float = 1.0
     auto_retry_resize: bool = True
+    max_retry_steps: int = 3
+    retry_decay_factor: float = 0.75
 
 
 class ExecutionSimulateIn(BaseModel):

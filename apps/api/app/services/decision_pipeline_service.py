@@ -83,6 +83,8 @@ def run_decision_pipeline(
     auto_execute_simulated: bool = False,
     simulated_fill_ratio: float = 1.0,
     auto_retry_resize: bool = True,
+    max_retry_steps: int = 3,
+    retry_decay_factor: float = 0.75,
 ) -> dict:
     plan = pcs.construct_target_weights(
         db,
@@ -94,6 +96,32 @@ def run_decision_pipeline(
     nav = Decimal(str(summary["nav"]))
 
     results: list[dict] = []
+
+    def _build_execution_plan(current_weight: float, target_weight: float) -> tuple[dict, float, float, float]:
+        delta_pct_local = abs(target_weight - current_weight)
+        order_notional_local = float(nav * Decimal(str(delta_pct_local)) / Decimal("100"))
+        qty_local = (order_notional_local / px) if px > 0 else 0.0
+        execution_sim_local = ess.simulate_execution(
+            side=_pick_action(current_weight, target_weight).value,
+            quantity=qty_local,
+            reference_price=px if px > 0 else 1.0,
+            adv_notional=adv_notional if adv_notional > 0 else None,
+            fill_ratio=1.0,
+        )
+        adv_ratio_pct_local = (order_notional_local / adv_notional * 100) if adv_notional > 0 else 0.0
+        return (
+            {
+                "order_notional": order_notional_local,
+                "estimated_quantity": qty_local,
+                "estimated_slippage_bps": execution_sim_local["slippage_bps"],
+                "estimated_shortfall": execution_sim_local["implementation_shortfall"],
+                "adv_ratio_pct": adv_ratio_pct_local,
+                "schedule": _execution_schedule(adv_ratio_pct_local),
+            },
+            order_notional_local,
+            qty_local,
+            adv_ratio_pct_local,
+        )
 
     def _create_decision_with_optional_flow(
         *,
@@ -178,28 +206,10 @@ def run_decision_pipeline(
     for item in plan["targets"]:
         target_weight = float(item["target_weight_pct"])
         current_weight = float(item["current_weight_pct"])
-        delta_pct = abs(target_weight - current_weight)
-        order_notional = float(nav * Decimal(str(delta_pct)) / Decimal("100"))
         sec = db.get(Security, UUID(item["security_id"]))
         px = float(sec.last_price or 0) if sec else 0.0
-        qty = (order_notional / px) if px > 0 else 0.0
         adv_notional = float((sec.meta or {}).get("avg_daily_turnover") or 0) if sec else 0.0
-        execution_sim = ess.simulate_execution(
-            side=_pick_action(current_weight, target_weight).value,
-            quantity=qty,
-            reference_price=px if px > 0 else 1.0,
-            adv_notional=adv_notional if adv_notional > 0 else None,
-            fill_ratio=1.0,
-        )
-        adv_ratio_pct = (order_notional / adv_notional * 100) if adv_notional > 0 else 0.0
-        execution_plan = {
-            "order_notional": order_notional,
-            "estimated_quantity": qty,
-            "estimated_slippage_bps": execution_sim["slippage_bps"],
-            "estimated_shortfall": execution_sim["implementation_shortfall"],
-            "adv_ratio_pct": adv_ratio_pct,
-            "schedule": _execution_schedule(adv_ratio_pct),
-        }
+        execution_plan, order_notional, _, _ = _build_execution_plan(current_weight, target_weight)
 
         risk = prs.run_pretrade_checks(
             db,
@@ -229,57 +239,75 @@ def run_decision_pipeline(
             retry_result = None
             if auto_retry_resize and downgrade_advice.get("suggested_action") == "resize":
                 resized_target = float(downgrade_advice.get("suggested_target_weight_pct") or target_weight)
-                resized_delta_pct = abs(resized_target - current_weight)
-                resized_order_notional = float(nav * Decimal(str(resized_delta_pct)) / Decimal("100"))
-                retry_risk = prs.run_pretrade_checks(
-                    db,
-                    portfolio_id,
-                    UUID(item["security_id"]),
-                    target_weight_pct=resized_target,
-                    order_notional=resized_order_notional,
-                    corr_value=None,
-                )
                 retried = True
-                if retry_risk["allowed"]:
-                    resized_qty = (resized_order_notional / px) if px > 0 else 0.0
-                    resized_execution_sim = ess.simulate_execution(
-                        side=_pick_action(current_weight, resized_target).value,
-                        quantity=resized_qty,
-                        reference_price=px if px > 0 else 1.0,
-                        adv_notional=adv_notional if adv_notional > 0 else None,
-                        fill_ratio=1.0,
+                attempts: list[dict] = []
+                for idx in range(max(1, max_retry_steps)):
+                    resized_plan, resized_order_notional, _, _ = _build_execution_plan(current_weight, resized_target)
+                    retry_risk = prs.run_pretrade_checks(
+                        db,
+                        portfolio_id,
+                        UUID(item["security_id"]),
+                        target_weight_pct=resized_target,
+                        order_notional=resized_order_notional,
+                        corr_value=None,
                     )
-                    resized_adv_ratio_pct = (
-                        (resized_order_notional / adv_notional * 100) if adv_notional > 0 else 0.0
-                    )
-                    resized_plan = {
-                        "order_notional": resized_order_notional,
-                        "estimated_quantity": resized_qty,
-                        "estimated_slippage_bps": resized_execution_sim["slippage_bps"],
-                        "estimated_shortfall": resized_execution_sim["implementation_shortfall"],
-                        "adv_ratio_pct": resized_adv_ratio_pct,
-                        "schedule": _execution_schedule(resized_adv_ratio_pct),
+                    cost_benefit = {
+                        "shortfall_reduction": round(
+                            execution_plan["estimated_shortfall"] - resized_plan["estimated_shortfall"], 6
+                        ),
+                        "slippage_bps_reduction": round(
+                            execution_plan["estimated_slippage_bps"] - resized_plan["estimated_slippage_bps"], 6
+                        ),
+                        "notional_reduction_pct": round(
+                            ((execution_plan["order_notional"] - resized_plan["order_notional"])
+                             / execution_plan["order_notional"] * 100)
+                            if execution_plan["order_notional"] > 0
+                            else 0.0,
+                            6,
+                        ),
                     }
-                    action = _pick_action(current_weight, resized_target)
-                    created = _create_decision_with_optional_flow(
-                        security_id=item["security_id"],
-                        symbol=item["symbol"],
-                        current_weight=current_weight,
-                        target_weight=resized_target,
-                        action=action,
-                        risk_result=retry_risk,
-                        execution_plan_obj=resized_plan,
-                        retry_note="resize 二次风控通过",
+                    attempts.append(
+                        {
+                            "step": idx + 1,
+                            "target_weight_pct": resized_target,
+                            "risk": retry_risk,
+                            "cost_benefit": cost_benefit,
+                        }
                     )
-                    created["retry"] = {
-                        "attempted": True,
-                        "from_target_weight_pct": target_weight,
-                        "to_target_weight_pct": resized_target,
-                        "passed": True,
-                    }
-                    results.append(created)
+                    if retry_risk["allowed"]:
+                        action = _pick_action(current_weight, resized_target)
+                        created = _create_decision_with_optional_flow(
+                            security_id=item["security_id"],
+                            symbol=item["symbol"],
+                            current_weight=current_weight,
+                            target_weight=resized_target,
+                            action=action,
+                            risk_result=retry_risk,
+                            execution_plan_obj=resized_plan,
+                            retry_note=f"resize 第{idx+1}次风控通过",
+                        )
+                        created["retry"] = {
+                            "attempted": True,
+                            "from_target_weight_pct": target_weight,
+                            "to_target_weight_pct": resized_target,
+                            "passed": True,
+                            "step": idx + 1,
+                            "attempts": attempts,
+                        }
+                        results.append(created)
+                        break
+
+                    if idx == max(1, max_retry_steps) - 1:
+                        retry_result = {
+                            "passed": False,
+                            "attempts": attempts,
+                            "fallback_action": "partial" if attempts else "watch",
+                        }
+                        break
+                    resized_target = max(current_weight, resized_target * retry_decay_factor)
+
+                if retry_result is None and attempts and attempts[-1]["risk"]["allowed"]:
                     continue
-                retry_result = {"risk": retry_risk, "resized_target_weight_pct": resized_target, "passed": False}
             results.append(
                 {
                     "security_id": item["security_id"],
@@ -298,6 +326,9 @@ def run_decision_pipeline(
                         "to_target_weight_pct": downgrade_advice.get("suggested_target_weight_pct"),
                         "passed": False if retried else None,
                         "result": retry_result,
+                        "fallback_action": (retry_result or {}).get("fallback_action", "watch")
+                        if retried
+                        else "watch",
                     },
                 }
             )

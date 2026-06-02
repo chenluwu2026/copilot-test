@@ -248,6 +248,29 @@ class DecisionClosedLoopTests(unittest.TestCase):
         self.assertGreaterEqual(len(rows), 1)
         self.assertTrue(rows[0]["retry"]["passed"])
         self.assertIsNotNone(rows[0]["decision_id"])
+        self.assertGreaterEqual(len(rows[0]["retry"]["attempts"]), 1)
+        self.assertIn("cost_benefit", rows[0]["retry"]["attempts"][0])
+
+    def test_pipeline_retry_fallback_partial_when_all_fail(self):
+        limits = dict(self.portfolio.risk_limits or {})
+        limits["max_adv_pct"] = 0.01
+        self.portfolio.risk_limits = limits
+        self.db.commit()
+        out = run_decision_pipeline(
+            self.db,
+            portfolio_id=self.portfolio.id,
+            candidates=[{"security_id": self.sec2.id, "score": 1.0}],
+            max_turnover_pct=30,
+            auto_retry_resize=True,
+            max_retry_steps=2,
+            retry_decay_factor=0.5,
+        )
+        rejected = [r for r in out["results"] if not r["allowed"]]
+        self.assertGreaterEqual(len(rejected), 1)
+        retry = rejected[0].get("retry") or {}
+        self.assertTrue(retry.get("attempted"))
+        self.assertEqual(retry.get("fallback_action"), "partial")
+        self.assertEqual(len((retry.get("result") or {}).get("attempts") or []), 2)
 
 
 if __name__ == "__main__":
