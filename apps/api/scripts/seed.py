@@ -332,7 +332,7 @@ def _seed_demo_trades(db, portfolio_id) -> None:
         ("00700.HK", TradeSide.buy, Decimal("200")),
         ("300750.SZ", TradeSide.buy, Decimal("300")),
         ("600036.SH", TradeSide.buy, Decimal("500")),
-        ("09988.HK", TradeSide.buy, Decimal("150")),
+        ("09988.HK", TradeSide.buy, Decimal("200")),
     ]
     for sym, side, qty in specs[existing:]:
         sec = db.scalar(select(Security).where(Security.symbol == sym))
