@@ -44,7 +44,8 @@ class Settings(BaseSettings):
     news_sync_max_symbols: int = 8
     jwt_secret: str | None = None
     auth_password: str | None = None
-    alembic_upgrade_on_start: bool = False
+    # Postgres 等已有卷需迁移；sqlite 本地可关
+    alembic_upgrade_on_start: bool = True
     cron_secret: str | None = None
     # CIO 证据驱动决策
     cio_decision_mode: str = "batch"  # batch | per_symbol
