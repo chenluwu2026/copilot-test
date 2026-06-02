@@ -2,6 +2,7 @@ import os
 import unittest
 from decimal import Decimal
 from uuid import UUID
+from uuid import uuid4
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -39,7 +40,8 @@ class DecisionClosedLoopTests(unittest.TestCase):
         Base.metadata.create_all(bind=self.engine)
         self.db = sessionmaker(bind=self.engine)()
 
-        user = User(email="test@example.com", display_name="tester")
+        run_id = uuid4().hex[:8]
+        user = User(email=f"test-{run_id}@example.com", display_name="tester")
         self.db.add(user)
         self.db.commit()
         self.portfolio = Portfolio(
@@ -58,7 +60,7 @@ class DecisionClosedLoopTests(unittest.TestCase):
         self.db.add(self.portfolio)
         self.db.flush()
         self.sec1 = Security(
-            symbol="AAA.HK",
+            symbol=f"AAA.{run_id}.HK",
             name="AAA",
             market=Market.HK,
             currency="HKD",
@@ -68,7 +70,7 @@ class DecisionClosedLoopTests(unittest.TestCase):
             meta={"avg_daily_turnover": 1_000_000},
         )
         self.sec2 = Security(
-            symbol="BBB.HK",
+            symbol=f"BBB.{run_id}.HK",
             name="BBB",
             market=Market.HK,
             currency="HKD",
