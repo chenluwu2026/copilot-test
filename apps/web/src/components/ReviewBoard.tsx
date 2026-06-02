@@ -28,6 +28,14 @@ export function ReviewBoard({ items }: { items: OpenDecision[] }) {
     setLoading(`review-${id}`);
     try {
       const res = await api.runReview(id);
+      if (res.review_quality) {
+        const failed = res.review_quality.checklist.filter((c) => !c.ok);
+        const msg = [
+          `复盘质量 ${res.review_quality.quality_pct}%`,
+          ...failed.map((c) => `· ${c.item}: ${c.detail}`),
+        ].join("\n");
+        if (failed.length) alert(msg);
+      }
       if (res.memory_id) {
         const ok = confirm(
           "复盘完成，已生成待确认记忆。是否立即激活？激活后将在下次 CIO 调仓时注入。"

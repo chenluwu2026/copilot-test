@@ -36,4 +36,16 @@ OPENAI_API_KEY=sk-...
 
 `GET /api/v1/onboarding/status?portfolio_id=<id>` 返回五项均为 `ok: true`。
 
+本地：`make onboarding-check`（使用 sqlite `.onboarding.db`）。
+
 详见 [06-mvp-task-list.md](./06-mvp-task-list.md)。
+
+## 质量检查（每日可选）
+
+| 环节 | 页面 / API | 通过标准 |
+|------|------------|----------|
+| 研究 | `/research/[symbol]` · `GET .../quality` | 完成度 ≥60%、闸门通过、研究未过期 |
+| 决策 | `/decisions/[id]` · `GET .../coverage` | 卷宗覆盖 ≥70%、证据非 C 级（若启用拦截） |
+| 复盘 | `/review` · 运行复盘后 `review_quality` | 清单 ≥80%、激活关键记忆 |
+| 月度 | 复盘页「生成月度复盘」 | Markdown 含执行/复盘统计 |
+| 宏观 | `/portfolio` 情景卡片 | 对照当前环境选择 tilt |

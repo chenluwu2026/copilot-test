@@ -20,6 +20,7 @@ from app.routers import (
     research,
     review,
     rules,
+    scenarios,
     securities,
     users,
     watchlists,
@@ -113,6 +114,7 @@ app.include_router(users.router, prefix=prefix)
 app.include_router(dashboard.router, prefix=prefix)
 app.include_router(onboarding.router, prefix=prefix)
 app.include_router(rules.router, prefix=prefix)
+app.include_router(scenarios.router, prefix=prefix)
 app.include_router(auth.router, prefix=prefix)
 
 

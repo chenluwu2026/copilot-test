@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import ResearchRating, Security
 from app.services import event_service, research_service as rs
+from app.services.research_quality_service import get_research_quality
 
 router = APIRouter(prefix="/research", tags=["research"])
 
@@ -25,6 +26,11 @@ class ResearchCreate(BaseModel):
 @router.get("")
 def list_research(db: Session = Depends(get_db)):
     return rs.list_research_summaries(db)
+
+
+@router.get("/symbol/{symbol}/quality")
+def research_quality(symbol: str, db: Session = Depends(get_db)):
+    return get_research_quality(db, symbol)
 
 
 @router.get("/symbol/{symbol}")

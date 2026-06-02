@@ -8,6 +8,7 @@ import { ReviewBoard } from "@/components/ReviewBoard";
 import { ReviewPendingMemoryPanel } from "@/components/ReviewPendingMemoryPanel";
 import { ReviewSummaryBanner } from "@/components/ReviewSummaryBanner";
 import { DailyReportPanel } from "@/components/DailyReportPanel";
+import { MonthlyRetrospectivePanel } from "@/components/MonthlyRetrospectivePanel";
 import { api } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
@@ -23,6 +24,8 @@ export default async function ReviewPage() {
   let runs: Awaited<ReturnType<typeof api.agentRuns>> = [];
   let reviewSummary: Awaited<ReturnType<typeof api.reviewSummary>> | null = null;
   let pendingMemories: Awaited<ReturnType<typeof api.pendingMemories>> = [];
+  let backtestQuality: Awaited<ReturnType<typeof api.backtestQuality>> | null = null;
+  let executionQuality: Awaited<ReturnType<typeof api.executionQuality>> | null = null;
 
   if (pid) {
     try {
@@ -38,6 +41,13 @@ export default async function ReviewPage() {
     backtest = await api.backtest(pid);
     memories = await api.memories();
     runs = await api.agentRuns(pid);
+    try {
+      backtestQuality = await api.backtestQuality(pid);
+      executionQuality = await api.executionQuality(pid);
+    } catch {
+      backtestQuality = null;
+      executionQuality = null;
+    }
   }
 
   return (
@@ -94,9 +104,28 @@ export default async function ReviewPage() {
       </Card>
 
       {pid && (
-        <Card title="每日组合日报">
-          <DailyReportPanel portfolioId={pid} initialMd={reportMd} />
-        </Card>
+        <>
+          <Card title="月度复盘（Markdown）">
+            <MonthlyRetrospectivePanel portfolioId={pid} />
+          </Card>
+          {backtestQuality && (
+            <Card title="回测质量提示">
+              <p className="text-sm">{backtestQuality.message}</p>
+              <p className="mt-1 text-xs text-gray-500">
+                样本 {backtestQuality.sample_size} · 风险 {backtestQuality.overfitting_risk}
+                {backtestQuality.sharpe != null && ` · Sharpe ${backtestQuality.sharpe}`}
+              </p>
+            </Card>
+          )}
+          {executionQuality && (
+            <Card title="执行质量">
+              <p className="text-sm">{executionQuality.summary}</p>
+            </Card>
+          )}
+          <Card title="每日组合日报">
+            <DailyReportPanel portfolioId={pid} initialMd={reportMd} />
+          </Card>
+        </>
       )}
     </div>
   );

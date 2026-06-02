@@ -1,0 +1,30 @@
+[
+  {
+    "id": "soft_landing",
+    "name": "软着陆",
+    "description": "通胀回落、增长温和；适合维持核心仓位、择机加仓优质成长",
+    "tilts": { "equity": 0.1, "bond": 0.0, "cash": -0.05 },
+    "watchlist_actions": ["检查研究新鲜度", "CIO 草案偏增持"]
+  },
+  {
+    "id": "stagflation",
+    "name": "滞胀担忧",
+    "description": "增长放缓 + 通胀粘性；减仓高估值成长、增防御与现金流",
+    "tilts": { "equity": -0.1, "bond": -0.05, "cash": 0.1 },
+    "watchlist_actions": ["收紧低证据批准", "复核假设中的成本传导"]
+  },
+  {
+    "id": "liquidity_crunch",
+    "name": "流动性收紧",
+    "description": "利率高位、信用利差走阔；降杠杆、缩短持有周期",
+    "tilts": { "equity": -0.15, "bond": 0.05, "cash": 0.15 },
+    "watchlist_actions": ["优先复盘到期决策", "减少新增仓位"]
+  },
+  {
+    "id": "china_recovery",
+    "name": "国内复苏",
+    "description": "政策托底 + 消费修复；增 A/H 核心资产权重",
+    "tilts": { "equity": 0.12, "bond": 0.0, "cash": -0.08 },
+    "watchlist_actions": ["同步 akshare 数据", "刷新事件驱动研究"]
+  }
+]

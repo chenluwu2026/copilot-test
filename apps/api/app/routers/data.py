@@ -13,6 +13,7 @@ from app.services.filing_sync_service import list_filings, sync_filings, sync_fi
 from app.services.market_data_service import get_bars, sync_quotes
 from app.services.news_sync_service import sync_news_for_watchlist
 from app.services.sync_runner import start_sync_all_background
+from app.services.financial_ingest_service import ingest_financial_document
 from app.services.user_context import get_default_user
 
 router = APIRouter(prefix="/data", tags=["data"])
@@ -228,3 +229,24 @@ def financials_by_symbol(symbol: str, db: Session = Depends(get_db)):
             for r in rows
         ],
     }
+
+
+class FinancialIngestBody(BaseModel):
+    security_id: UUID
+    period_key: str
+    report_type: str = "abstract"
+    raw_text: str
+
+
+@router.post("/ingest/financial-text")
+def ingest_financial_text(body: FinancialIngestBody, db: Session = Depends(get_db)):
+    try:
+        return ingest_financial_document(
+            db,
+            body.security_id,
+            period_key=body.period_key,
+            report_type=body.report_type,
+            raw_text=body.raw_text,
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e

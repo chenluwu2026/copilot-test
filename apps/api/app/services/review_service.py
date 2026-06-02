@@ -322,11 +322,28 @@ def attribution_report(db: Session, portfolio_id: UUID) -> dict:
         "worst_pct": min(returns) if returns else 0,
     }
 
+    symbol_pnl: dict[str, float] = {}
+    symbol_weight: dict[str, float] = {}
+    for pos in summary["positions"]:
+        sym = pos.get("symbol") or "?"
+        symbol_pnl[sym] = symbol_pnl.get(sym, 0) + pos.get("unrealized_pnl", 0)
+        symbol_weight[sym] = symbol_weight.get(sym, 0) + pos.get("weight_pct", 0)
+    symbols = [
+        {
+            "symbol": s,
+            "unrealized_pnl": round(v, 2),
+            "weight_pct": round(symbol_weight.get(s, 0), 2),
+            "contribution_pct": round(v / total_pnl * 100, 1) if total_pnl else 0,
+        }
+        for s, v in sorted(symbol_pnl.items(), key=lambda x: -abs(x[1]))[:15]
+    ]
+
     return {
         "portfolio_id": str(portfolio_id),
         "nav": summary["nav"],
         "cumulative_return_pct": summary["cumulative_return_pct"],
         "sector_attribution": sectors,
+        "symbol_attribution": symbols,
         "decision_stats": decision_stats,
     }
 

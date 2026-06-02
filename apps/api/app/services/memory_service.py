@@ -5,6 +5,21 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.models import MemoryEntry, MemoryType, StrategyRule
+from app.services.embedding_service import cosine_similarity, embed_text
+
+_TIER_DECAY: dict[str, float] = {
+    "episodic": 0.85,
+    "lesson": 1.0,
+    "rule": 1.1,
+}
+
+
+def _tier_for_type(memory_type: MemoryType) -> str:
+    if memory_type == MemoryType.anti_pattern:
+        return "rule"
+    if memory_type == MemoryType.rule:
+        return "rule"
+    return "lesson"
 
 
 def search_memory(db: Session, query: str | None = None, limit: int = 10) -> list[MemoryEntry]:
@@ -49,7 +64,7 @@ def _tokenize_context(
     return out
 
 
-def _memory_match_score(entry: MemoryEntry, tokens: list[str]) -> int:
+def _memory_match_score(entry: MemoryEntry, tokens: list[str]) -> float:
     hay = " ".join(
         [
             entry.title or "",
@@ -57,9 +72,20 @@ def _memory_match_score(entry: MemoryEntry, tokens: list[str]) -> int:
             " ".join(entry.tags or []),
         ]
     ).lower()
-    score = sum(2 if t.lower() in (entry.title or "").lower() else 1 for t in tokens if t.lower() in hay)
-    score += int(float(getattr(entry, "confidence", 0) or 0) / 20)
+    score = float(
+        sum(2 if t.lower() in (entry.title or "").lower() else 1 for t in tokens if t.lower() in hay)
+    )
+    score += float(getattr(entry, "confidence", 0) or 0) / 20
+    tier = getattr(entry, "memory_tier", None) or "lesson"
+    score *= _TIER_DECAY.get(tier, 1.0)
     return score
+
+
+def _vector_match_score(entry: MemoryEntry, query_vec: list[float]) -> float:
+    emb = getattr(entry, "embedding", None)
+    if not emb or not query_vec:
+        return 0.0
+    return cosine_similarity(emb, query_vec) * 10
 
 
 def search_memory_context(
@@ -75,16 +101,24 @@ def search_memory_context(
     if not tokens:
         return search_memory(db, "投资", limit=limit)
 
+    query_text = " ".join(tokens)
+    query_vec = embed_text(query_text)
     rows = list(
         db.scalars(
             select(MemoryEntry)
             .where(MemoryEntry.active.is_(True))
             .order_by(MemoryEntry.confidence.desc())
-            .limit(50)
+            .limit(80)
         )
     )
-    ranked = sorted(rows, key=lambda m: _memory_match_score(m, tokens), reverse=True)
-    matched = [m for m in ranked if _memory_match_score(m, tokens) > 0]
+
+    def combined_score(m: MemoryEntry) -> float:
+        kw = _memory_match_score(m, tokens)
+        vec = _vector_match_score(m, query_vec)
+        return kw + vec
+
+    ranked = sorted(rows, key=combined_score, reverse=True)
+    matched = [m for m in ranked if combined_score(m) > 0.5]
     if matched:
         return matched[:limit]
     return search_memory(db, " ".join(tokens[:3]), limit=limit)
@@ -104,6 +138,7 @@ def _mem_dict(m: MemoryEntry) -> dict:
     return {
         "id": str(m.id),
         "memory_type": m.memory_type.value,
+        "memory_tier": getattr(m, "memory_tier", None) or "lesson",
         "title": m.title,
         "content": m.content,
         "tags": m.tags,
@@ -111,6 +146,7 @@ def _mem_dict(m: MemoryEntry) -> dict:
         "active": m.active,
         "pending": m.pending,
         "evidence_decision_ids": m.evidence_decision_ids,
+        "has_embedding": bool(getattr(m, "embedding", None)),
         "created_at": m.created_at.isoformat() if m.created_at else None,
     }
 
@@ -156,12 +192,17 @@ def create_memory(
     tags: list | None = None,
     evidence_decision_ids: list | None = None,
     active: bool = False,
+    memory_tier: str | None = None,
 ) -> MemoryEntry:
+    tier = memory_tier or _tier_for_type(memory_type)
+    text_for_emb = f"{title}\n{content}"
     m = MemoryEntry(
         memory_type=memory_type,
+        memory_tier=tier,
         title=title,
         content=content,
         tags=tags or [],
+        embedding=embed_text(text_for_emb),
         evidence_decision_ids=evidence_decision_ids or [],
         active=active,
         pending=not active,

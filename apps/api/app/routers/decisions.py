@@ -9,6 +9,7 @@ from app.schemas_api import DecisionCreate, DecisionExecute, DecisionStatusUpdat
 from app.services import decision_service as ds
 from app.services import portfolio_service as ps
 from app.services.decision_provenance_service import get_decision_provenance
+from app.services.decision_coverage_service import get_decision_coverage
 from app.services.decision_timeline_service import get_decision_timeline
 from app.services.user_context import get_default_user
 
@@ -91,6 +92,14 @@ def decision_timeline(decision_id: UUID, db: Session = Depends(get_db)):
 def decision_provenance(decision_id: UUID, db: Session = Depends(get_db)):
     try:
         return get_decision_provenance(db, decision_id)
+    except ValueError as e:
+        raise HTTPException(404, str(e)) from e
+
+
+@router.get("/{decision_id}/coverage")
+def decision_coverage(decision_id: UUID, db: Session = Depends(get_db)):
+    try:
+        return get_decision_coverage(db, decision_id)
     except ValueError as e:
         raise HTTPException(404, str(e)) from e
 
