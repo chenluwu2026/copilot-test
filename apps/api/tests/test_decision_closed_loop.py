@@ -187,6 +187,8 @@ class DecisionClosedLoopTests(unittest.TestCase):
         self.assertGreaterEqual(len(out["results"]), 1)
         created = [r for r in out["results"] if r["decision_id"]]
         self.assertGreaterEqual(len(created), 1)
+        self.assertIn("execution_plan", out["results"][0])
+        self.assertIn("schedule", out["results"][0]["execution_plan"])
 
 
 if __name__ == "__main__":

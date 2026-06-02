@@ -3,8 +3,9 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from app.models import DecisionAction
+from app.models import DecisionAction, Security
 from app.services import decision_service as ds
+from app.services import execution_simulator_service as ess
 from app.services import portfolio_construction_service as pcs
 from app.services import portfolio_service as ps
 from app.services import pretrade_risk_service as prs
@@ -17,6 +18,14 @@ def _pick_action(current_weight: float, target_weight: float) -> DecisionAction:
     if delta > 0:
         return DecisionAction.add if current_weight > 0 else DecisionAction.buy
     return DecisionAction.reduce
+
+
+def _execution_schedule(adv_ratio_pct: float) -> dict:
+    if adv_ratio_pct <= 2:
+        return {"style": "single-shot", "slices": 1, "horizon_minutes": 5}
+    if adv_ratio_pct <= 8:
+        return {"style": "twap", "slices": 4, "horizon_minutes": 30}
+    return {"style": "twap", "slices": 8, "horizon_minutes": 90}
 
 
 def run_decision_pipeline(
@@ -41,6 +50,26 @@ def run_decision_pipeline(
         current_weight = float(item["current_weight_pct"])
         delta_pct = abs(target_weight - current_weight)
         order_notional = float(nav * Decimal(str(delta_pct)) / Decimal("100"))
+        sec = db.get(Security, UUID(item["security_id"]))
+        px = float(sec.last_price or 0) if sec else 0.0
+        qty = (order_notional / px) if px > 0 else 0.0
+        adv_notional = float((sec.meta or {}).get("avg_daily_turnover") or 0) if sec else 0.0
+        execution_sim = ess.simulate_execution(
+            side=_pick_action(current_weight, target_weight).value,
+            quantity=qty,
+            reference_price=px if px > 0 else 1.0,
+            adv_notional=adv_notional if adv_notional > 0 else None,
+            fill_ratio=1.0,
+        )
+        adv_ratio_pct = (order_notional / adv_notional * 100) if adv_notional > 0 else 0.0
+        execution_plan = {
+            "order_notional": order_notional,
+            "estimated_quantity": qty,
+            "estimated_slippage_bps": execution_sim["slippage_bps"],
+            "estimated_shortfall": execution_sim["implementation_shortfall"],
+            "adv_ratio_pct": adv_ratio_pct,
+            "schedule": _execution_schedule(adv_ratio_pct),
+        }
 
         risk = prs.run_pretrade_checks(
             db,
@@ -80,6 +109,7 @@ def run_decision_pipeline(
                     "action": action.value,
                     "target_weight_pct": target_weight,
                     "current_weight_pct": current_weight,
+                    "execution_plan": execution_plan,
                 }
             )
         else:
@@ -93,6 +123,7 @@ def run_decision_pipeline(
                     "action": "watch",
                     "target_weight_pct": target_weight,
                     "current_weight_pct": current_weight,
+                    "execution_plan": execution_plan,
                 }
             )
 
