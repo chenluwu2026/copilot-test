@@ -19,6 +19,7 @@ def upgrade() -> None:
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("portfolio_id", sa.UUID(), nullable=False),
         sa.Column("security_id", sa.UUID(), nullable=False),
+        sa.Column("decision_id", sa.UUID(), nullable=True),
         sa.Column("run_id", sa.String(length=64), nullable=True),
         sa.Column(
             "status",
@@ -46,14 +47,17 @@ def upgrade() -> None:
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.ForeignKeyConstraint(["portfolio_id"], ["portfolios.id"]),
         sa.ForeignKeyConstraint(["security_id"], ["securities.id"]),
+        sa.ForeignKeyConstraint(["decision_id"], ["decisions.id"]),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index("ix_decision_ledger_portfolio_id", "decision_ledger", ["portfolio_id"])
     op.create_index("ix_decision_ledger_security_id", "decision_ledger", ["security_id"])
+    op.create_index("ix_decision_ledger_decision_id", "decision_ledger", ["decision_id"])
 
 
 def downgrade() -> None:
     op.drop_index("ix_decision_ledger_security_id", table_name="decision_ledger")
     op.drop_index("ix_decision_ledger_portfolio_id", table_name="decision_ledger")
+    op.drop_index("ix_decision_ledger_decision_id", table_name="decision_ledger")
     op.drop_table("decision_ledger")
     op.execute("DROP TYPE IF EXISTS decisionledgerstatus")

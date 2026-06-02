@@ -1,5 +1,6 @@
 from uuid import UUID
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import DecisionLedger, DecisionLedgerStatus, Portfolio, Security
@@ -36,6 +37,7 @@ def create_ledger(
     portfolio_id: UUID,
     security_id: UUID,
     run_id: str | None = None,
+    decision_id: UUID | None = None,
     input_snapshot_json: dict | None = None,
     proposal_json: dict | None = None,
     risk_result_json: dict | None = None,
@@ -48,6 +50,7 @@ def create_ledger(
     ledger = DecisionLedger(
         portfolio_id=portfolio_id,
         security_id=security_id,
+        decision_id=decision_id,
         run_id=run_id,
         input_snapshot_json=input_snapshot_json or {},
         proposal_json=proposal_json or {},
@@ -62,6 +65,15 @@ def create_ledger(
 
 def get_ledger(db: Session, ledger_id: UUID) -> DecisionLedger | None:
     return db.get(DecisionLedger, ledger_id)
+
+
+def get_latest_ledger_by_decision(db: Session, decision_id: UUID) -> DecisionLedger | None:
+    return db.scalar(
+        select(DecisionLedger)
+        .where(DecisionLedger.decision_id == decision_id)
+        .order_by(DecisionLedger.created_at.desc())
+        .limit(1)
+    )
 
 
 def list_ledgers(db: Session, portfolio_id: UUID | None = None, limit: int = 50) -> list[DecisionLedger]:

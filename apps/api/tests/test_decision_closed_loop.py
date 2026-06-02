@@ -7,7 +7,9 @@ from sqlalchemy.orm import sessionmaker
 
 from app.database import Base
 from app.models import (
+    DecisionAction,
     DecisionLedgerStatus,
+    DecisionStatus,
     Market,
     Portfolio,
     Position,
@@ -15,8 +17,11 @@ from app.models import (
     User,
 )
 from app.services.decision_ledger_service import create_ledger, transition_ledger
+from app.services.decision_ledger_service import get_latest_ledger_by_decision
+from app.services.decision_service import create_decision, update_decision_status
 from app.services.execution_simulator_service import simulate_execution
 from app.services.portfolio_construction_service import construct_target_weights
+from app.services.portfolio_service import execute_decision
 from app.services.pretrade_risk_service import run_pretrade_checks
 
 
@@ -140,6 +145,32 @@ class DecisionClosedLoopTests(unittest.TestCase):
             to_status=DecisionLedgerStatus.submitted,
         )
         self.assertEqual(ledger.status, DecisionLedgerStatus.submitted)
+
+    def test_decision_auto_sync_to_ledger(self):
+        decision = create_decision(
+            self.db,
+            self.portfolio.id,
+            self.sec1.id,
+            action=DecisionAction.buy,
+            decision_reason="测试联动",
+            current_weight_pct=10,
+            target_weight_pct=8,
+            main_risks=[],
+            review_conditions=[],
+            assumptions=[],
+            references=[{"ref_type": "news", "ref_id": "n1", "excerpt": "盈利改善"}],
+        )
+        ledger = get_latest_ledger_by_decision(self.db, decision.id)
+        self.assertIsNotNone(ledger)
+        self.assertEqual(ledger.status, DecisionLedgerStatus.draft)
+
+        update_decision_status(self.db, decision.id, status=DecisionStatus.approved)
+        ledger = get_latest_ledger_by_decision(self.db, decision.id)
+        self.assertEqual(ledger.status, DecisionLedgerStatus.approved)
+
+        execute_decision(self.db, decision.id)
+        ledger = get_latest_ledger_by_decision(self.db, decision.id)
+        self.assertEqual(ledger.status, DecisionLedgerStatus.filled)
 
 
 if __name__ == "__main__":

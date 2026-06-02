@@ -106,6 +106,7 @@ class DecisionExecute(BaseModel):
 class DecisionLedgerCreate(BaseModel):
     portfolio_id: UUID
     security_id: UUID
+    decision_id: UUID | None = None
     run_id: str | None = None
     input_snapshot_json: dict = Field(default_factory=dict)
     proposal_json: dict = Field(default_factory=dict)

@@ -262,6 +262,7 @@ class Decision(Base):
     references: Mapped[list["DecisionReference"]] = relationship(
         back_populates="decision", cascade="all, delete-orphan"
     )
+    ledgers: Mapped[list["DecisionLedger"]] = relationship(back_populates="decision")
     feedbacks: Mapped[list["UserFeedback"]] = relationship(back_populates="decision")
     outcome: Mapped["DecisionOutcome | None"] = relationship(
         back_populates="decision", uselist=False
@@ -301,6 +302,7 @@ class DecisionLedger(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=new_uuid)
     portfolio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("portfolios.id"), nullable=False)
     security_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("securities.id"), nullable=False)
+    decision_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("decisions.id"))
     run_id: Mapped[str | None] = mapped_column(String(64))
     status: Mapped[DecisionLedgerStatus] = mapped_column(
         Enum(DecisionLedgerStatus), default=DecisionLedgerStatus.draft
@@ -318,6 +320,7 @@ class DecisionLedger(Base):
 
     portfolio: Mapped["Portfolio"] = relationship(back_populates="decision_ledgers")
     security: Mapped["Security"] = relationship()
+    decision: Mapped["Decision | None"] = relationship(back_populates="ledgers")
 
 
 class UserFeedback(Base):

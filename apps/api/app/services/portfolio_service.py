@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.models import (
     Decision,
     DecisionAction,
+    DecisionLedgerStatus,
     DecisionStatus,
     Portfolio,
     Position,
@@ -16,6 +17,7 @@ from app.models import (
     TradeSide,
     TradeSource,
 )
+from app.services import decision_ledger_service as dls
 
 
 COMMISSION_RATE = Decimal("0.0003")
@@ -240,6 +242,18 @@ def _mark_decision_executed_no_trade(db: Session, decision: Decision, note: str)
     summary["execution_note"] = note
     decision.cio_summary = summary
     db.commit()
+    ledger = dls.get_latest_ledger_by_decision(db, decision.id)
+    if ledger:
+        for st in (DecisionLedgerStatus.submitted, DecisionLedgerStatus.filled):
+            try:
+                dls.transition_ledger(
+                    db,
+                    ledger_id=ledger.id,
+                    to_status=st,
+                    execution_result_json={"filled_notional": 0, "note": note},
+                )
+            except ValueError:
+                continue
 
 
 def execute_decision(db: Session, decision_id: UUID, price: Decimal | None = None) -> Trade | None:
@@ -306,4 +320,32 @@ def execute_decision(db: Session, decision_id: UUID, price: Decimal | None = Non
     summary["entry_price"] = float(price)
     decision.cio_summary = summary
     db.commit()
+    ledger = dls.get_latest_ledger_by_decision(db, decision.id)
+    if ledger:
+        submitted_ok = False
+        try:
+            dls.transition_ledger(db, ledger_id=ledger.id, to_status=DecisionLedgerStatus.submitted)
+            submitted_ok = True
+        except ValueError:
+            submitted_ok = ledger.status in (
+                DecisionLedgerStatus.submitted,
+                DecisionLedgerStatus.partially_filled,
+                DecisionLedgerStatus.filled,
+            )
+        if submitted_ok:
+            try:
+                dls.transition_ledger(
+                    db,
+                    ledger_id=ledger.id,
+                    to_status=DecisionLedgerStatus.filled,
+                    execution_result_json={
+                        "trade_id": str(trade.id),
+                        "price": float(trade.price),
+                        "quantity": float(trade.quantity),
+                        "amount": float(trade.amount),
+                        "commission": float(trade.commission),
+                    },
+                )
+            except ValueError:
+                pass
     return trade

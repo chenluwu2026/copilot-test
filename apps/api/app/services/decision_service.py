@@ -11,11 +11,13 @@ from app.models import (
     Decision,
     DecisionAction,
     DecisionAssumption,
+    DecisionLedgerStatus,
     DecisionReference,
     DecisionStatus,
     ReferenceType,
     UserFeedback,
 )
+from app.services import decision_ledger_service as dls
 
 
 def _load_schema(name: str) -> dict:
@@ -126,6 +128,28 @@ def create_decision(
             )
         )
     db.commit()
+    dls.create_ledger(
+        db,
+        portfolio_id=portfolio_id,
+        security_id=security_id,
+        decision_id=decision.id,
+        proposal_json={
+            "action": action.value,
+            "current_weight_pct": current_weight_pct,
+            "target_weight_pct": target_weight_pct,
+            "delta_weight_pct": delta,
+            "decision_reason": decision_reason,
+            "main_risks": main_risks,
+            "review_conditions": review_conditions,
+            "confidence_grade": confidence_grade,
+            "holding_period": holding_period,
+        },
+        input_snapshot_json={
+            "references_count": len(references or []),
+            "assumptions_count": len(assumptions),
+            "created_by_agent": created_by_agent,
+        },
+    )
     return get_decision(db, decision.id)
 
 
@@ -166,6 +190,18 @@ def update_decision_status(db: Session, decision_id: UUID, status: DecisionStatu
         raise ValueError("证据不足（等级 C 且无参考信息），请补充参考后再批准")
     decision.status = status
     db.commit()
+    ledger = dls.get_latest_ledger_by_decision(db, decision.id)
+    if ledger:
+        status_map = {
+            DecisionStatus.approved: "approved",
+            DecisionStatus.cancelled: "cancelled",
+        }
+        ledger_target = status_map.get(status)
+        if ledger_target:
+            try:
+                dls.transition_ledger(db, ledger_id=ledger.id, to_status=DecisionLedgerStatus(ledger_target))
+            except ValueError:
+                pass
     return get_decision(db, decision_id)
 
 
