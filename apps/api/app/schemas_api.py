@@ -103,6 +103,64 @@ class DecisionExecute(BaseModel):
     price: float | None = None
 
 
+class DecisionLedgerCreate(BaseModel):
+    portfolio_id: UUID
+    security_id: UUID
+    decision_id: UUID | None = None
+    run_id: str | None = None
+    input_snapshot_json: dict = Field(default_factory=dict)
+    proposal_json: dict = Field(default_factory=dict)
+    risk_result_json: dict = Field(default_factory=dict)
+    execution_plan_json: dict = Field(default_factory=dict)
+
+
+class DecisionLedgerTransition(BaseModel):
+    to_status: str
+    execution_result_json: dict | None = None
+    postmortem_json: dict | None = None
+    risk_result_json: dict | None = None
+
+
+class PretradeRiskCheckIn(BaseModel):
+    portfolio_id: UUID
+    security_id: UUID
+    target_weight_pct: float = 0
+    order_notional: float = 0
+    corr_value: float | None = None
+
+
+class CandidateWeightIn(BaseModel):
+    security_id: UUID
+    score: float = 0
+
+
+class ConstructTargetsIn(BaseModel):
+    portfolio_id: UUID
+    candidates: list[CandidateWeightIn] = Field(default_factory=list)
+    max_turnover_pct: float = 40
+
+
+class DecisionPipelineIn(BaseModel):
+    portfolio_id: UUID
+    candidates: list[CandidateWeightIn] = Field(default_factory=list)
+    max_turnover_pct: float = 40
+    auto_approve: bool = False
+    auto_execute_simulated: bool = False
+    simulated_fill_ratio: float = 1.0
+    auto_retry_resize: bool = True
+    max_retry_steps: int = 3
+    retry_decay_factor: float = 0.75
+    auto_apply_fallback_partial: bool = True
+
+
+class ExecutionSimulateIn(BaseModel):
+    side: str
+    quantity: float
+    reference_price: float
+    adv_notional: float | None = None
+    fill_ratio: float = 1.0
+
+
 class FeedbackCreate(BaseModel):
     rating: int = Field(ge=1, le=5)
     correction: str | None = None
