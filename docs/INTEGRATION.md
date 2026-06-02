@@ -2,6 +2,8 @@
 
 本文档描述各模块如何串联（事件 → 研究 → 调仓 → 复盘）。
 
+**每日操作顺序**见 [DAILY_OPERATOR_PLAYBOOK.md](./DAILY_OPERATOR_PLAYBOOK.md)（收盘：同步 → 事件 → 研究 → 调仓 → 收件箱 → 复盘/日报）。
+
 ## 事件 → 研究
 
 - 新闻/公告入库（`ingest_news`、公告同步）后，若 `EVENT_RESEARCH_REFRESH_ENABLED=true`（默认），对**高敏感度**或**重大事件类型**自动调用 `refresh_stale_research`（不覆盖 `human` 定稿）。

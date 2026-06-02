@@ -14,7 +14,20 @@ export function RebalanceButton({ portfolioId }: { portfolioId: string }) {
     setMsg("");
     try {
       const res = await api.runRebalance(portfolioId);
-      setMsg(`已生成 ${res.decision_ids.length} 条决策草稿`);
+      let trace = "";
+      if (res.run_id) {
+        try {
+          const run = await api.agentRun(res.run_id);
+          const mode =
+            run.output?.cio_mode ||
+            run.output?.trace?.cio_mode ||
+            run.input_context?.agent_mode;
+          trace = mode ? ` · Agent: ${mode}` : "";
+        } catch {
+          /* ignore */
+        }
+      }
+      setMsg(`已生成 ${res.decision_ids.length} 条决策草稿${trace}`);
       router.push("/decisions/inbox");
       router.refresh();
     } catch (e) {

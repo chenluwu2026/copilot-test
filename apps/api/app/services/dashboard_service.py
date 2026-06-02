@@ -9,6 +9,7 @@ from app.services.data_quality_service import get_data_quality
 from app.services.event_review_service import high_impact_event_todos
 from app.services.profile_service import get_investment_profile
 from app.services.review_reminder_service import review_summary
+from app.services.operator_steps_service import assumptions_pending_verification
 from app.services.user_context import get_default_user
 
 
@@ -58,4 +59,5 @@ def get_dashboard_actions(db: Session, portfolio_id: UUID) -> dict:
         "stale_data_symbols": stale,
         "data_coverage_pct": quality["summary"].get("coverage_pct", 0),
         "event_review_todos": event_todos,
+        "assumptions_pending": assumptions_pending_verification(db, portfolio_id),
     }

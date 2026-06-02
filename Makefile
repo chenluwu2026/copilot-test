@@ -25,3 +25,16 @@ web:
 
 seed:
 	cd apps/api && DATABASE_URL=postgresql://aims:aims@localhost:5432/aims SCHEMAS_DIR=$(CURDIR)/schemas python -c "from scripts.seed import run_seed; run_seed()"
+
+onboarding-check:
+	cd apps/api && RUN_SEED=true python3 -c "\
+from app.database import SessionLocal; \
+from app.models import Portfolio; \
+from sqlalchemy import select; \
+from scripts.seed import run_seed; \
+from app.services.onboarding_service import get_phase1_dod; \
+run_seed(); \
+db = SessionLocal(); \
+p = db.scalar(select(Portfolio).limit(1)); \
+print(get_phase1_dod(db, p.id) if p else 'no portfolio'); \
+db.close()"

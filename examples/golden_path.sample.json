@@ -1,0 +1,12 @@
+{
+  "description": "黄金演示链：事件 → 研究 → CIO 草案 → 批准 → 执行 → 记忆",
+  "symbols": ["00700.HK"],
+  "steps": [
+    "structured_event (ingest_news / seed)",
+    "research_view (ten-section + valuation)",
+    "cio_decision draft (golden_path: true in cio_summary)",
+    "approve + execute",
+    "review + memory_entry"
+  ],
+  "decision_sample": "decision_tencent_add.sample.json"
+}

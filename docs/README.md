@@ -10,5 +10,6 @@
 | [04-frontend-pages.md](./04-frontend-pages.md) | 7 个核心页面规格 |
 | [05-agent-workflows.md](./05-agent-workflows.md) | Agent 编排与工作流 |
 | [06-mvp-task-list.md](./06-mvp-task-list.md) | 分阶段任务与验收 |
+| [DAILY_OPERATOR_PLAYBOOK.md](./DAILY_OPERATOR_PLAYBOOK.md) | 基金经理一日操作剧本 |
 
 JSON Schema：`../schemas/`

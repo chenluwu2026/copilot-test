@@ -1,5 +1,7 @@
 import { DecisionActions } from "@/components/DecisionActions";
+import { AdvancedFold } from "@/components/AdvancedFold";
 import { DecisionProvenancePanel } from "@/components/DecisionProvenancePanel";
+import { DecisionTimelinePanel } from "@/components/DecisionTimeline";
 import { Card } from "@/components/Card";
 import { api } from "@/lib/api";
 
@@ -17,6 +19,12 @@ export default async function DecisionDetailPage({
     provenance = await api.decisionProvenance(params.id);
   } catch {
     provenance = null;
+  }
+  let timeline: Awaited<ReturnType<typeof api.decisionTimeline>> | null = null;
+  try {
+    timeline = await api.decisionTimeline(params.id);
+  } catch {
+    timeline = null;
   }
 
   return (
@@ -84,9 +92,11 @@ export default async function DecisionDetailPage({
         </Card>
       )}
 
-      <Card title="决策溯源（Agent / 记忆 / 闸门）">
+      <DecisionTimelinePanel timeline={timeline} />
+
+      <AdvancedFold title="决策溯源（Agent / 记忆 / 闸门）" defaultOpen>
         <DecisionProvenancePanel data={provenance} />
-      </Card>
+      </AdvancedFold>
 
       <DecisionActions
         decisionId={d.id}

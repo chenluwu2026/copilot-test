@@ -11,6 +11,7 @@ from app.routers import (
     agents,
     auth,
     dashboard,
+    onboarding,
     data,
     decisions,
     events,
@@ -110,6 +111,7 @@ app.include_router(review.router, prefix=prefix)
 app.include_router(data.router, prefix=prefix)
 app.include_router(users.router, prefix=prefix)
 app.include_router(dashboard.router, prefix=prefix)
+app.include_router(onboarding.router, prefix=prefix)
 app.include_router(rules.router, prefix=prefix)
 app.include_router(auth.router, prefix=prefix)
 

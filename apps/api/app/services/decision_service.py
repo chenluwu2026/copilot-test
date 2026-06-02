@@ -129,8 +129,26 @@ def create_decision(
     return get_decision(db, decision.id)
 
 
+def _evidence_grade(decision: Decision) -> str:
+    grade = (decision.cio_summary or {}).get("evidence_grade")
+    if grade:
+        return str(grade)
+    dossier = (decision.cio_summary or {}).get("dossier") or {}
+    payload = {
+        "assumptions": [{"text": a.assumption_text} for a in decision.assumptions],
+        "references": [{"ref_type": r.ref_type.value, "excerpt": r.excerpt} for r in decision.references],
+    }
+    try:
+        from app.services.decision_quality_service import score_decision_draft
+
+        result = score_decision_draft(dossier, payload)
+        return result.get("grade", "B")
+    except Exception:
+        return "B"
+
+
 def update_decision_status(db: Session, decision_id: UUID, status: DecisionStatus) -> Decision:
-    decision = db.get(Decision, decision_id)
+    decision = get_decision(db, decision_id)
     if not decision:
         raise ValueError("决策不存在")
     allowed = {
@@ -139,6 +157,13 @@ def update_decision_status(db: Session, decision_id: UUID, status: DecisionStatu
     }
     if status not in allowed.get(decision.status, set()):
         raise ValueError(f"不能从 {decision.status} 转为 {status}")
+    if (
+        status == DecisionStatus.approved
+        and settings.require_low_evidence_block
+        and _evidence_grade(decision) == "C"
+        and len(decision.references) < 1
+    ):
+        raise ValueError("证据不足（等级 C 且无参考信息），请补充参考后再批准")
     decision.status = status
     db.commit()
     return get_decision(db, decision_id)

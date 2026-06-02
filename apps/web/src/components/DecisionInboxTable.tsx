@@ -41,6 +41,15 @@ export function DecisionInboxTable({
   });
 
   async function setStatus(id: string, status: string) {
+    const item = items.find((x) => x.id === id);
+    if (
+      status === "approved" &&
+      item?.evidence_grade === "C" &&
+      (!item.references || item.references.length < 1)
+    ) {
+      alert("证据不足（等级 C 且无参考信息），请补充参考后再批准。");
+      return;
+    }
     setLoading(`${status}-${id}`);
     try {
       await api.updateDecisionStatus(id, status);

@@ -126,6 +126,7 @@ def run_rebalance_workflow(db: Session, portfolio_id: UUID, trigger: str = "manu
         run.output = {
             "decision_ids": decision_ids,
             "cio_decisions": cio_outputs,
+            "cio_mode": cio_mode,
             "trace": trace,
         }
         run.finished_at = datetime.now(timezone.utc)

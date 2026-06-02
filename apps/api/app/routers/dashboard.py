@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.services.dashboard_service import get_dashboard_actions
+from app.services.operator_steps_service import get_operator_steps
 from app.services.quality_metrics_service import get_quality_metrics
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
@@ -18,3 +19,8 @@ def dashboard_actions(portfolio_id: UUID, db: Session = Depends(get_db)):
 @router.get("/metrics")
 def dashboard_metrics(portfolio_id: UUID, db: Session = Depends(get_db)):
     return get_quality_metrics(db, portfolio_id)
+
+
+@router.get("/steps")
+def dashboard_steps(portfolio_id: UUID, db: Session = Depends(get_db)):
+    return get_operator_steps(db, portfolio_id)

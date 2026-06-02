@@ -58,6 +58,8 @@ class Settings(BaseSettings):
     llm_model: str = "gpt-4o-mini"
     llm_timeout_s: int = 120
     structuring_mode: str = "rule"  # rule | llm
+    # 低证据（grade C）决策禁止批准，除非关闭
+    require_low_evidence_block: bool = True
     # 可选：简单保护公开 API（个人部署建议设置）
     api_key: str | None = None
     # Railway 等分域名部署：放行 https://*.up.railway.app

@@ -4,7 +4,8 @@ import { Card } from "@/components/Card";
 import { DashboardActionCenter } from "@/components/DashboardActionCenter";
 import { DashboardEventReview } from "@/components/DashboardEventReview";
 import { DashboardQualityMetrics } from "@/components/DashboardQualityMetrics";
-import { QuickStartGuide } from "@/components/QuickStartGuide";
+import { DashboardOnboardingProgress } from "@/components/DashboardOnboardingProgress";
+import { DashboardOperatorSteps } from "@/components/DashboardOperatorSteps";
 import { api } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
@@ -41,12 +42,22 @@ export default async function DashboardPage() {
   } catch {
     metrics = null;
   }
+  let onboarding: Awaited<ReturnType<typeof api.onboardingStatus>> | null = null;
+  let operatorSteps: Awaited<ReturnType<typeof api.dashboardSteps>> | null = null;
+  try {
+    onboarding = await api.onboardingStatus(p.id);
+    operatorSteps = await api.dashboardSteps(p.id);
+  } catch {
+    onboarding = null;
+    operatorSteps = null;
+  }
 
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">Dashboard</h1>
 
-      <QuickStartGuide />
+      <DashboardOnboardingProgress status={onboarding} />
+      <DashboardOperatorSteps data={operatorSteps} />
 
       <DashboardQualityMetrics metrics={metrics} />
 

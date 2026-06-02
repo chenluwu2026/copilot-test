@@ -8,7 +8,8 @@
 
 | 任务 | 命令 |
 |------|------|
-| API 测试 | `cd apps/api && pip install -r requirements.txt && pytest -q` |
+| API 测试 | `cd apps/api && pip install -r requirements.txt && python3 -m unittest discover -s tests -p 'test_*.py'` |
+| Phase 1 DoD | `make onboarding-check` |
 | 生产部署 | `docker compose -f docker-compose.prod.yml up -d --build` |
 | 前端无缓存重建 | `docker compose -f docker-compose.prod.yml build --no-cache web && docker compose -f docker-compose.prod.yml up -d web` |
 

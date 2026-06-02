@@ -18,6 +18,14 @@ from app.services.user_context import get_default_user
 router = APIRouter(prefix="/data", tags=["data"])
 
 
+@router.get("/provider")
+def data_provider_info():
+    return {
+        "data_provider": settings.data_provider,
+        "is_mock": settings.data_provider == "mock",
+    }
+
+
 class SyncRequest(BaseModel):
     security_ids: list[UUID] | None = None
     days: int | None = None

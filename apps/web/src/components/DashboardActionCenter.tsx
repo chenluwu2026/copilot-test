@@ -12,6 +12,7 @@ export function DashboardActionCenter({ actions }: { actions: DashboardActions |
     stale_data_symbols,
     data_coverage_pct,
     event_review_todos = [],
+    assumptions_pending = [],
   } = actions;
 
   const items = [
@@ -64,6 +65,16 @@ export function DashboardActionCenter({ actions }: { actions: DashboardActions |
       value: review.pending_memory_count,
       highlight: review.pending_memory_count > 0,
       href: "/review",
+    },
+    {
+      label: "待验证假设",
+      value: assumptions_pending.length,
+      highlight: assumptions_pending.length > 0,
+      href: "/review",
+      sub:
+        assumptions_pending.length > 0
+          ? assumptions_pending[0].text.slice(0, 40)
+          : undefined,
     },
   ];
 

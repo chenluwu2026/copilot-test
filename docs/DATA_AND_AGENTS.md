@@ -51,6 +51,16 @@ curl -X POST "https://<api域名>/api/v1/data/sync/cron" \
 
 ---
 
+## LLM 启用检查清单
+
+- [ ] `OPENAI_API_KEY` 已设置（或兼容网关 `OPENAI_BASE_URL`）
+- [ ] `AGENT_MODE=llm`（默认 `rule` 不会调用模型）
+- [ ] Settings 页「Agent 健康检查」显示 **LLM 运行中**
+- [ ] 调仓后收件箱 / Agent 运行详情可见 `cio_mode: llm`（失败则为 `rule` + fallback）
+- [ ] 了解费用：`LLM_MODEL` 建议 `gpt-4o-mini`；失败自动回退规则引擎
+
+---
+
 ## 方案 A · 智能（LLM）
 
 ### 开启 CIO LLM
