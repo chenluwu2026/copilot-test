@@ -271,6 +271,9 @@ class DecisionClosedLoopTests(unittest.TestCase):
         self.assertTrue(retry.get("attempted"))
         self.assertEqual(retry.get("fallback_action"), "partial")
         self.assertEqual(len((retry.get("result") or {}).get("attempts") or []), 2)
+        fallback_created = [r for r in out["results"] if (r.get("fallback") or {}).get("applied")]
+        self.assertGreaterEqual(len(fallback_created), 1)
+        self.assertIsNotNone(fallback_created[0].get("decision_id"))
 
 
 if __name__ == "__main__":

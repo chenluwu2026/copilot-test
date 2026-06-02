@@ -85,6 +85,7 @@ def run_decision_pipeline(
     auto_retry_resize: bool = True,
     max_retry_steps: int = 3,
     retry_decay_factor: float = 0.75,
+    auto_apply_fallback_partial: bool = True,
 ) -> dict:
     plan = pcs.construct_target_weights(
         db,
@@ -332,6 +333,54 @@ def run_decision_pipeline(
                     },
                 }
             )
+            if (
+                auto_apply_fallback_partial
+                and retried
+                and (retry_result or {}).get("fallback_action") == "partial"
+            ):
+                delta = target_weight - current_weight
+                if abs(delta) >= 0.01:
+                    partial_target = current_weight + (0.5 if delta > 0 else -0.5)
+                else:
+                    partial_target = current_weight
+                partial_target = max(0.0, min(100.0, round(partial_target, 4)))
+                partial_plan, partial_notional, _, _ = _build_execution_plan(current_weight, partial_target)
+                action = _pick_action(current_weight, partial_target)
+                partial_risk = prs.run_pretrade_checks(
+                    db,
+                    portfolio_id,
+                    UUID(item["security_id"]),
+                    target_weight_pct=partial_target,
+                    order_notional=partial_notional,
+                    corr_value=None,
+                )
+                created = _create_decision_with_optional_flow(
+                    security_id=item["security_id"],
+                    symbol=item["symbol"],
+                    current_weight=current_weight,
+                    target_weight=partial_target,
+                    action=action,
+                    risk_result={
+                        **partial_risk,
+                        "fallback_forced": True,
+                        "fallback_reason": "多轮重试失败后启用最小可行仓位",
+                    },
+                    execution_plan_obj=partial_plan,
+                    retry_note="fallback partial 最小可行仓位",
+                )
+                created["fallback"] = {
+                    "applied": True,
+                    "mode": "partial",
+                    "target_weight_pct": partial_target,
+                }
+                created["retry"] = {
+                    "attempted": True,
+                    "from_target_weight_pct": target_weight,
+                    "passed": False,
+                    "result": retry_result,
+                    "fallback_action": "partial",
+                }
+                results.append(created)
 
     return {
         "portfolio_id": str(portfolio_id),

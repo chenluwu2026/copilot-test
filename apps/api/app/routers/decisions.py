@@ -224,6 +224,7 @@ def run_decision_pipeline(body: DecisionPipelineIn, db: Session = Depends(get_db
             auto_retry_resize=body.auto_retry_resize,
             max_retry_steps=body.max_retry_steps,
             retry_decay_factor=body.retry_decay_factor,
+            auto_apply_fallback_partial=body.auto_apply_fallback_partial,
         )
     except ValueError as e:
         raise HTTPException(400, str(e)) from e

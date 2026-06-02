@@ -150,6 +150,7 @@ class DecisionPipelineIn(BaseModel):
     auto_retry_resize: bool = True
     max_retry_steps: int = 3
     retry_decay_factor: float = 0.75
+    auto_apply_fallback_partial: bool = True
 
 
 class ExecutionSimulateIn(BaseModel):
