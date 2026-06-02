@@ -82,6 +82,7 @@ def run_decision_pipeline(
     auto_approve: bool = False,
     auto_execute_simulated: bool = False,
     simulated_fill_ratio: float = 1.0,
+    auto_retry_resize: bool = True,
 ) -> dict:
     plan = pcs.construct_target_weights(
         db,
@@ -93,6 +94,87 @@ def run_decision_pipeline(
     nav = Decimal(str(summary["nav"]))
 
     results: list[dict] = []
+
+    def _create_decision_with_optional_flow(
+        *,
+        security_id: str,
+        symbol: str | None,
+        current_weight: float,
+        target_weight: float,
+        action: DecisionAction,
+        risk_result: dict,
+        execution_plan_obj: dict,
+        retry_note: str | None = None,
+    ) -> dict:
+        reason = f"自动组合构建建议：目标权重 {target_weight:.2f}%"
+        if retry_note:
+            reason = f"{reason}（{retry_note}）"
+        decision = ds.create_decision(
+            db,
+            portfolio_id=portfolio_id,
+            security_id=UUID(security_id),
+            action=action,
+            decision_reason=reason,
+            current_weight_pct=current_weight,
+            target_weight_pct=target_weight,
+            main_risks=[],
+            review_conditions=[],
+            assumptions=[],
+            references=[{"ref_type": "factor", "excerpt": "pipeline auto-generated"}],
+            confidence_grade="B",
+            holding_period="1-3个月",
+            cio_summary=None,
+            created_by_agent="decision_pipeline",
+        )
+        auto_approved = False
+        simulated_execution = None
+        if auto_approve:
+            decision = ds.update_decision_status(db, decision.id, DecisionStatus.approved)
+            auto_approved = True
+        if auto_execute_simulated and auto_approved:
+            simulated_execution = ess.simulate_execution(
+                side=action.value,
+                quantity=execution_plan_obj["estimated_quantity"],
+                reference_price=px if px > 0 else 1.0,
+                adv_notional=adv_notional if adv_notional > 0 else None,
+                fill_ratio=simulated_fill_ratio,
+            )
+            ledger = dls.get_latest_ledger_by_decision(db, decision.id)
+            if ledger:
+                try:
+                    dls.transition_ledger(
+                        db,
+                        ledger_id=ledger.id,
+                        to_status=DecisionLedgerStatus.submitted,
+                    )
+                except ValueError:
+                    pass
+                try:
+                    dls.transition_ledger(
+                        db,
+                        ledger_id=ledger.id,
+                        to_status=DecisionLedgerStatus.filled,
+                        execution_result_json={
+                            "mode": "simulated",
+                            **simulated_execution,
+                        },
+                    )
+                except ValueError:
+                    pass
+        return {
+            "security_id": security_id,
+            "symbol": symbol,
+            "allowed": True,
+            "risk": risk_result,
+            "decision_id": str(decision.id),
+            "action": action.value,
+            "target_weight_pct": target_weight,
+            "current_weight_pct": current_weight,
+            "execution_plan": execution_plan_obj,
+            "auto_approved": auto_approved,
+            "simulated_execution": simulated_execution,
+        }
+
     for item in plan["targets"]:
         target_weight = float(item["target_weight_pct"])
         current_weight = float(item["current_weight_pct"])
@@ -130,75 +212,74 @@ def run_decision_pipeline(
 
         if risk["allowed"]:
             action = _pick_action(current_weight, target_weight)
-            decision = ds.create_decision(
-                db,
-                portfolio_id=portfolio_id,
-                security_id=UUID(item["security_id"]),
-                action=action,
-                decision_reason=f"自动组合构建建议：目标权重 {target_weight:.2f}%",
-                current_weight_pct=current_weight,
-                target_weight_pct=target_weight,
-                main_risks=[],
-                review_conditions=[],
-                assumptions=[],
-                references=[{"ref_type": "factor", "excerpt": "pipeline auto-generated"}],
-                confidence_grade="B",
-                holding_period="1-3个月",
-                cio_summary=None,
-                created_by_agent="decision_pipeline",
-            )
-            auto_approved = False
-            simulated_execution = None
-            if auto_approve:
-                decision = ds.update_decision_status(db, decision.id, DecisionStatus.approved)
-                auto_approved = True
-            if auto_execute_simulated and auto_approved:
-                simulated_execution = ess.simulate_execution(
-                    side=action.value,
-                    quantity=execution_plan["estimated_quantity"],
-                    reference_price=px if px > 0 else 1.0,
-                    adv_notional=adv_notional if adv_notional > 0 else None,
-                    fill_ratio=simulated_fill_ratio,
-                )
-                ledger = dls.get_latest_ledger_by_decision(db, decision.id)
-                if ledger:
-                    try:
-                        dls.transition_ledger(
-                            db,
-                            ledger_id=ledger.id,
-                            to_status=DecisionLedgerStatus.submitted,
-                        )
-                    except ValueError:
-                        pass
-                    try:
-                        dls.transition_ledger(
-                            db,
-                            ledger_id=ledger.id,
-                            to_status=DecisionLedgerStatus.filled,
-                            execution_result_json={
-                                "mode": "simulated",
-                                **simulated_execution,
-                            },
-                        )
-                    except ValueError:
-                        pass
             results.append(
-                {
-                    "security_id": item["security_id"],
-                    "symbol": item["symbol"],
-                    "allowed": True,
-                    "risk": risk,
-                    "decision_id": str(decision.id),
-                    "action": action.value,
-                    "target_weight_pct": target_weight,
-                    "current_weight_pct": current_weight,
-                    "execution_plan": execution_plan,
-                    "auto_approved": auto_approved,
-                    "simulated_execution": simulated_execution,
-                }
+                _create_decision_with_optional_flow(
+                    security_id=item["security_id"],
+                    symbol=item["symbol"],
+                    current_weight=current_weight,
+                    target_weight=target_weight,
+                    action=action,
+                    risk_result=risk,
+                    execution_plan_obj=execution_plan,
+                )
             )
         else:
             downgrade_advice = _build_downgrade_advice(risk, target_weight, current_weight)
+            retried = False
+            retry_result = None
+            if auto_retry_resize and downgrade_advice.get("suggested_action") == "resize":
+                resized_target = float(downgrade_advice.get("suggested_target_weight_pct") or target_weight)
+                resized_delta_pct = abs(resized_target - current_weight)
+                resized_order_notional = float(nav * Decimal(str(resized_delta_pct)) / Decimal("100"))
+                retry_risk = prs.run_pretrade_checks(
+                    db,
+                    portfolio_id,
+                    UUID(item["security_id"]),
+                    target_weight_pct=resized_target,
+                    order_notional=resized_order_notional,
+                    corr_value=None,
+                )
+                retried = True
+                if retry_risk["allowed"]:
+                    resized_qty = (resized_order_notional / px) if px > 0 else 0.0
+                    resized_execution_sim = ess.simulate_execution(
+                        side=_pick_action(current_weight, resized_target).value,
+                        quantity=resized_qty,
+                        reference_price=px if px > 0 else 1.0,
+                        adv_notional=adv_notional if adv_notional > 0 else None,
+                        fill_ratio=1.0,
+                    )
+                    resized_adv_ratio_pct = (
+                        (resized_order_notional / adv_notional * 100) if adv_notional > 0 else 0.0
+                    )
+                    resized_plan = {
+                        "order_notional": resized_order_notional,
+                        "estimated_quantity": resized_qty,
+                        "estimated_slippage_bps": resized_execution_sim["slippage_bps"],
+                        "estimated_shortfall": resized_execution_sim["implementation_shortfall"],
+                        "adv_ratio_pct": resized_adv_ratio_pct,
+                        "schedule": _execution_schedule(resized_adv_ratio_pct),
+                    }
+                    action = _pick_action(current_weight, resized_target)
+                    created = _create_decision_with_optional_flow(
+                        security_id=item["security_id"],
+                        symbol=item["symbol"],
+                        current_weight=current_weight,
+                        target_weight=resized_target,
+                        action=action,
+                        risk_result=retry_risk,
+                        execution_plan_obj=resized_plan,
+                        retry_note="resize 二次风控通过",
+                    )
+                    created["retry"] = {
+                        "attempted": True,
+                        "from_target_weight_pct": target_weight,
+                        "to_target_weight_pct": resized_target,
+                        "passed": True,
+                    }
+                    results.append(created)
+                    continue
+                retry_result = {"risk": retry_risk, "resized_target_weight_pct": resized_target, "passed": False}
             results.append(
                 {
                     "security_id": item["security_id"],
@@ -211,6 +292,13 @@ def run_decision_pipeline(
                     "current_weight_pct": current_weight,
                     "execution_plan": execution_plan,
                     "downgrade_advice": downgrade_advice,
+                    "retry": {
+                        "attempted": retried,
+                        "from_target_weight_pct": target_weight,
+                        "to_target_weight_pct": downgrade_advice.get("suggested_target_weight_pct"),
+                        "passed": False if retried else None,
+                        "result": retry_result,
+                    },
                 }
             )
 

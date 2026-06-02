@@ -221,6 +221,7 @@ def run_decision_pipeline(body: DecisionPipelineIn, db: Session = Depends(get_db
             auto_approve=body.auto_approve,
             auto_execute_simulated=body.auto_execute_simulated,
             simulated_fill_ratio=body.simulated_fill_ratio,
+            auto_retry_resize=body.auto_retry_resize,
         )
     except ValueError as e:
         raise HTTPException(400, str(e)) from e

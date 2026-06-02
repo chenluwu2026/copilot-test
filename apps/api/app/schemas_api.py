@@ -147,6 +147,7 @@ class DecisionPipelineIn(BaseModel):
     auto_approve: bool = False
     auto_execute_simulated: bool = False
     simulated_fill_ratio: float = 1.0
+    auto_retry_resize: bool = True
 
 
 class ExecutionSimulateIn(BaseModel):

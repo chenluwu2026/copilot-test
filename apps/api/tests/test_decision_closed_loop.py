@@ -229,6 +229,26 @@ class DecisionClosedLoopTests(unittest.TestCase):
         self.assertIn("suggested_action", advice)
         self.assertIn("failed_gates", advice)
 
+    def test_pipeline_retry_resize_can_create_decision(self):
+        limits = dict(self.portfolio.risk_limits or {})
+        limits["max_adv_pct"] = 40
+        self.portfolio.risk_limits = limits
+        meta = dict(self.sec2.meta or {})
+        meta["avg_daily_turnover"] = 100000
+        self.sec2.meta = meta
+        self.db.commit()
+        out = run_decision_pipeline(
+            self.db,
+            portfolio_id=self.portfolio.id,
+            candidates=[{"security_id": self.sec2.id, "score": 1.0}],
+            max_turnover_pct=30,
+            auto_retry_resize=True,
+        )
+        rows = [r for r in out["results"] if r.get("retry", {}).get("attempted")]
+        self.assertGreaterEqual(len(rows), 1)
+        self.assertTrue(rows[0]["retry"]["passed"])
+        self.assertIsNotNone(rows[0]["decision_id"])
+
 
 if __name__ == "__main__":
     unittest.main()
