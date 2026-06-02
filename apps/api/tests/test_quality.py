@@ -1,14 +1,17 @@
 """质量服务单元测试。"""
-import os
 import unittest
 from decimal import Decimal
 
-os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
+import os
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.database import Base
+
+
+def _test_database_url() -> str:
+    return os.environ.get("DATABASE_URL") or "sqlite:///:memory:"
 from app.models import Market, MemoryType, Security
 from app.services.backtest_quality_service import backtest_quality_report
 from app.services.decision_quality_service import score_decision_draft
@@ -57,10 +60,11 @@ class MacroScenarioTests(unittest.TestCase):
 
 class MemoryVectorTests(unittest.TestCase):
     def setUp(self):
-        self._engine = create_engine(
-            "sqlite:///:memory:",
-            connect_args={"check_same_thread": False},
-        )
+        url = _test_database_url()
+        kw = {}
+        if url.startswith("sqlite"):
+            kw["connect_args"] = {"check_same_thread": False}
+        self._engine = create_engine(url, **kw)
         Base.metadata.create_all(bind=self._engine)
         self.db = sessionmaker(bind=self._engine)()
 
@@ -93,10 +97,11 @@ class MemoryVectorTests(unittest.TestCase):
 
 class ResearchQualityTests(unittest.TestCase):
     def setUp(self):
-        self._engine = create_engine(
-            "sqlite:///:memory:",
-            connect_args={"check_same_thread": False},
-        )
+        url = _test_database_url()
+        kw = {}
+        if url.startswith("sqlite"):
+            kw["connect_args"] = {"check_same_thread": False}
+        self._engine = create_engine(url, **kw)
         Base.metadata.create_all(bind=self._engine)
         self.db = sessionmaker(bind=self._engine)()
 
