@@ -4,8 +4,22 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import DecisionAction, DecisionStatus
-from app.schemas_api import DecisionCreate, DecisionExecute, DecisionStatusUpdate, FeedbackCreate
+from app.models import DecisionAction, DecisionLedgerStatus, DecisionStatus
+from app.schemas_api import (
+    ConstructTargetsIn,
+    DecisionCreate,
+    DecisionExecute,
+    DecisionLedgerCreate,
+    DecisionLedgerTransition,
+    DecisionStatusUpdate,
+    ExecutionSimulateIn,
+    FeedbackCreate,
+    PretradeRiskCheckIn,
+)
+from app.services import decision_ledger_service as dls
+from app.services import execution_simulator_service as ess
+from app.services import portfolio_construction_service as pcs
+from app.services import pretrade_risk_service as prs
 from app.services import decision_service as ds
 from app.services import portfolio_service as ps
 from app.services.decision_provenance_service import get_decision_provenance
@@ -102,6 +116,105 @@ def decision_coverage(decision_id: UUID, db: Session = Depends(get_db)):
         return get_decision_coverage(db, decision_id)
     except ValueError as e:
         raise HTTPException(404, str(e)) from e
+
+
+def _ledger_to_dict(l) -> dict:
+    return {
+        "id": str(l.id),
+        "portfolio_id": str(l.portfolio_id),
+        "security_id": str(l.security_id),
+        "run_id": l.run_id,
+        "status": l.status.value,
+        "input_snapshot_json": l.input_snapshot_json,
+        "proposal_json": l.proposal_json,
+        "risk_result_json": l.risk_result_json,
+        "execution_plan_json": l.execution_plan_json,
+        "execution_result_json": l.execution_result_json,
+        "postmortem_json": l.postmortem_json,
+        "created_at": l.created_at.isoformat() if l.created_at else None,
+        "updated_at": l.updated_at.isoformat() if l.updated_at else None,
+    }
+
+
+@router.post("/ledger")
+def create_decision_ledger(body: DecisionLedgerCreate, db: Session = Depends(get_db)):
+    try:
+        ledger = dls.create_ledger(
+            db,
+            portfolio_id=body.portfolio_id,
+            security_id=body.security_id,
+            run_id=body.run_id,
+            input_snapshot_json=body.input_snapshot_json,
+            proposal_json=body.proposal_json,
+            risk_result_json=body.risk_result_json,
+            execution_plan_json=body.execution_plan_json,
+        )
+        return _ledger_to_dict(ledger)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+
+
+@router.get("/ledger/{ledger_id}")
+def get_decision_ledger(ledger_id: UUID, db: Session = Depends(get_db)):
+    ledger = dls.get_ledger(db, ledger_id)
+    if not ledger:
+        raise HTTPException(404, "ledger 不存在")
+    return _ledger_to_dict(ledger)
+
+
+@router.post("/ledger/{ledger_id}/transition")
+def transition_decision_ledger(ledger_id: UUID, body: DecisionLedgerTransition, db: Session = Depends(get_db)):
+    try:
+        ledger = dls.transition_ledger(
+            db,
+            ledger_id=ledger_id,
+            to_status=DecisionLedgerStatus(body.to_status),
+            execution_result_json=body.execution_result_json,
+            postmortem_json=body.postmortem_json,
+            risk_result_json=body.risk_result_json,
+        )
+        return _ledger_to_dict(ledger)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+
+
+@router.post("/risk/pretrade/check")
+def pretrade_check(body: PretradeRiskCheckIn, db: Session = Depends(get_db)):
+    try:
+        return prs.run_pretrade_checks(
+            db,
+            body.portfolio_id,
+            body.security_id,
+            target_weight_pct=body.target_weight_pct,
+            order_notional=body.order_notional,
+            corr_value=body.corr_value,
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+
+
+@router.post("/portfolio/construct-targets")
+def construct_targets(body: ConstructTargetsIn, db: Session = Depends(get_db)):
+    try:
+        return pcs.construct_target_weights(
+            db,
+            body.portfolio_id,
+            [c.model_dump() for c in body.candidates],
+            max_turnover_pct=body.max_turnover_pct,
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+
+
+@router.post("/execution/simulate")
+def simulate_execution(body: ExecutionSimulateIn):
+    return ess.simulate_execution(
+        side=body.side,
+        quantity=body.quantity,
+        reference_price=body.reference_price,
+        adv_notional=body.adv_notional,
+        fill_ratio=body.fill_ratio,
+    )
 
 
 @router.get("/{decision_id}")

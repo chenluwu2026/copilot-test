@@ -75,6 +75,17 @@ class DecisionStatus(str, enum.Enum):
     superseded = "superseded"
 
 
+class DecisionLedgerStatus(str, enum.Enum):
+    draft = "draft"
+    risk_rejected = "risk_rejected"
+    approved = "approved"
+    submitted = "submitted"
+    partially_filled = "partially_filled"
+    filled = "filled"
+    cancelled = "cancelled"
+    reviewed = "reviewed"
+
+
 class ReferenceType(str, enum.Enum):
     news = "news"
     filing = "filing"
@@ -133,6 +144,7 @@ class Portfolio(Base):
     trades: Mapped[list["Trade"]] = relationship(back_populates="portfolio")
     nav_snapshots: Mapped[list["NavSnapshot"]] = relationship(back_populates="portfolio")
     decisions: Mapped[list["Decision"]] = relationship(back_populates="portfolio")
+    decision_ledgers: Mapped[list["DecisionLedger"]] = relationship(back_populates="portfolio")
     reports: Mapped[list["DailyPortfolioReport"]] = relationship(back_populates="portfolio")
 
 
@@ -281,6 +293,31 @@ class DecisionReference(Base):
     relevance_score: Mapped[Decimal | None] = mapped_column(Numeric(5, 4))
 
     decision: Mapped["Decision"] = relationship(back_populates="references")
+
+
+class DecisionLedger(Base):
+    __tablename__ = "decision_ledger"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=new_uuid)
+    portfolio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("portfolios.id"), nullable=False)
+    security_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("securities.id"), nullable=False)
+    run_id: Mapped[str | None] = mapped_column(String(64))
+    status: Mapped[DecisionLedgerStatus] = mapped_column(
+        Enum(DecisionLedgerStatus), default=DecisionLedgerStatus.draft
+    )
+    input_snapshot_json: Mapped[dict] = mapped_column(JSONType, default=dict)
+    proposal_json: Mapped[dict] = mapped_column(JSONType, default=dict)
+    risk_result_json: Mapped[dict] = mapped_column(JSONType, default=dict)
+    execution_plan_json: Mapped[dict] = mapped_column(JSONType, default=dict)
+    execution_result_json: Mapped[dict] = mapped_column(JSONType, default=dict)
+    postmortem_json: Mapped[dict] = mapped_column(JSONType, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    portfolio: Mapped["Portfolio"] = relationship(back_populates="decision_ledgers")
+    security: Mapped["Security"] = relationship()
 
 
 class UserFeedback(Base):

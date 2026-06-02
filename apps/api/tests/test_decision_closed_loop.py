@@ -1,0 +1,146 @@
+import os
+import unittest
+from decimal import Decimal
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+from app.database import Base
+from app.models import (
+    DecisionLedgerStatus,
+    Market,
+    Portfolio,
+    Position,
+    Security,
+    User,
+)
+from app.services.decision_ledger_service import create_ledger, transition_ledger
+from app.services.execution_simulator_service import simulate_execution
+from app.services.portfolio_construction_service import construct_target_weights
+from app.services.pretrade_risk_service import run_pretrade_checks
+
+
+def _db_url() -> str:
+    return os.environ.get("DATABASE_URL") or "sqlite:///:memory:"
+
+
+class DecisionClosedLoopTests(unittest.TestCase):
+    def setUp(self):
+        url = _db_url()
+        kw = {"connect_args": {"check_same_thread": False}} if url.startswith("sqlite") else {}
+        self.engine = create_engine(url, **kw)
+        Base.metadata.create_all(bind=self.engine)
+        self.db = sessionmaker(bind=self.engine)()
+
+        user = User(email="test@example.com", display_name="tester")
+        self.db.add(user)
+        self.db.commit()
+        self.portfolio = Portfolio(
+            user_id=user.id,
+            name="test",
+            initial_cash=Decimal("1000000"),
+            cash_balance=Decimal("600000"),
+            risk_limits={
+                "max_single_name_pct": 10,
+                "max_sector_pct": 30,
+                "min_cash_pct": 5,
+                "max_adv_pct": 20,
+                "max_correlation": 0.85,
+            },
+        )
+        self.db.add(self.portfolio)
+        self.db.flush()
+        self.sec1 = Security(
+            symbol="AAA.HK",
+            name="AAA",
+            market=Market.HK,
+            currency="HKD",
+            sector="科技",
+            lot_size=100,
+            last_price=Decimal("100"),
+            meta={"avg_daily_turnover": 1_000_000},
+        )
+        self.sec2 = Security(
+            symbol="BBB.HK",
+            name="BBB",
+            market=Market.HK,
+            currency="HKD",
+            sector="消费",
+            lot_size=100,
+            last_price=Decimal("50"),
+            meta={"avg_daily_turnover": 2_000_000},
+        )
+        self.db.add_all([self.sec1, self.sec2])
+        self.db.flush()
+        self.db.add(
+            Position(
+                portfolio_id=self.portfolio.id,
+                security_id=self.sec1.id,
+                quantity=Decimal("1000"),
+                avg_cost=Decimal("100"),
+                market_value=Decimal("100000"),
+                weight_pct=Decimal("10"),
+            )
+        )
+        self.db.commit()
+
+    def tearDown(self):
+        self.db.close()
+
+    def test_pretrade_checks_pass(self):
+        out = run_pretrade_checks(
+            self.db,
+            self.portfolio.id,
+            self.sec2.id,
+            target_weight_pct=8,
+            order_notional=50000,
+            corr_value=0.5,
+        )
+        self.assertTrue(out["allowed"])
+        self.assertEqual(len(out["checks"]), 5)
+
+    def test_portfolio_construction_and_execution(self):
+        plan = construct_target_weights(
+            self.db,
+            self.portfolio.id,
+            [{"security_id": self.sec1.id, "score": 0.7}, {"security_id": self.sec2.id, "score": 0.3}],
+            max_turnover_pct=30,
+        )
+        self.assertIn("targets", plan)
+        self.assertGreater(len(plan["targets"]), 0)
+
+        sim = simulate_execution(
+            side="buy",
+            quantity=1000,
+            reference_price=100,
+            adv_notional=1_000_000,
+            fill_ratio=0.6,
+        )
+        self.assertGreater(sim["executed_price"], sim["reference_price"])
+        self.assertEqual(sim["fill_ratio"], 0.6)
+
+    def test_decision_ledger_transition(self):
+        ledger = create_ledger(
+            self.db,
+            portfolio_id=self.portfolio.id,
+            security_id=self.sec1.id,
+            proposal_json={"action": "buy", "target_weight_pct": 8},
+        )
+        self.assertEqual(ledger.status, DecisionLedgerStatus.draft)
+        ledger = transition_ledger(
+            self.db,
+            ledger_id=ledger.id,
+            to_status=DecisionLedgerStatus.approved,
+            risk_result_json={"allowed": True},
+        )
+        self.assertEqual(ledger.status, DecisionLedgerStatus.approved)
+        ledger = transition_ledger(
+            self.db,
+            ledger_id=ledger.id,
+            to_status=DecisionLedgerStatus.submitted,
+        )
+        self.assertEqual(ledger.status, DecisionLedgerStatus.submitted)
+
+
+if __name__ == "__main__":
+    unittest.main()
