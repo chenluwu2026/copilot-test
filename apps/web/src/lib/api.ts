@@ -387,6 +387,7 @@ export type AgentRunDetail = AgentRun & {
   output?: {
     trace?: { steps?: unknown[]; cio_mode?: string; agent_mode?: string };
     decision_ids?: string[];
+    cio_mode?: string;
   };
   error_message?: string;
   finished_at?: string;

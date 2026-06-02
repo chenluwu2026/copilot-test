@@ -107,8 +107,8 @@ export default async function ResearchDetailPage({
               {ratingLabel[latest.rating] || latest.rating}
             </span>{" "}
             · v{latest.version} · {latest.agent_name}
-            {latest.updated_at && (
-              <> · 更新于 {latest.updated_at.slice(0, 10)}</>
+            {latest.created_at && (
+              <> · 更新于 {latest.created_at.slice(0, 10)}</>
             )}
           </p>
           {symbolQuality && symbolQuality.freshness !== "ok" && (
@@ -213,7 +213,7 @@ export default async function ResearchDetailPage({
             币种 {latest.scenario_analysis?.currency ?? "—"}
             {latest.scenario_analysis?.current_price != null &&
               ` · 现价 ${latest.scenario_analysis.current_price}`}
-            {latest.updated_at && ` · 观点更新 ${latest.updated_at.slice(0, 10)}`}
+            {latest.created_at && ` · 观点更新 ${latest.created_at.slice(0, 10)}`}
           </p>
           <table className="w-full text-left text-sm">
             <thead className="text-gray-400">

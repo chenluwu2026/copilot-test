@@ -2,7 +2,7 @@
 from uuid import UUID
 
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session
 
 from app.models import (
     Decision,
@@ -13,7 +13,6 @@ from app.models import (
 )
 from app.services.profile_service import get_investment_profile
 from app.services.data_quality_service import get_data_quality
-from app.services.dashboard_service import get_dashboard_actions
 from app.services.user_context import get_default_user
 
 
@@ -59,6 +58,8 @@ def get_operator_steps(db: Session, portfolio_id: UUID) -> dict:
 
     research_count = db.scalar(select(func.count()).select_from(ResearchView)) or 0
     research_ok = research_count >= 2
+
+    from app.services.dashboard_service import get_dashboard_actions
 
     actions = get_dashboard_actions(db, portfolio_id)
     has_drafts = actions["draft_decisions"] > 0
@@ -135,32 +136,3 @@ def get_operator_steps(db: Session, portfolio_id: UUID) -> dict:
         "total_count": len(steps),
         "steps": steps,
     }
-
-
-def assumptions_pending_verification(db: Session, portfolio_id: UUID) -> list[dict]:
-    from datetime import date
-
-    today = date.today()
-    pending: list[dict] = []
-    decisions = list(
-        db.scalars(
-            select(Decision)
-            .where(
-                Decision.portfolio_id == portfolio_id,
-                Decision.status.in_([DecisionStatus.approved, DecisionStatus.executed]),
-            )
-            .options(selectinload(Decision.assumptions))
-        )
-    )
-    for d in decisions:
-        for a in d.assumptions:
-            if a.measurable and a.deadline and a.deadline <= today:
-                pending.append(
-                    {
-                        "decision_id": str(d.id),
-                        "assumption_id": str(a.id),
-                        "text": a.assumption_text,
-                        "deadline": a.deadline.isoformat(),
-                    }
-                )
-    return pending
