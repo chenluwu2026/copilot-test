@@ -214,8 +214,23 @@ export const api = {
   dashboardActions: (portfolioId: string) =>
     fetchApi<DashboardActions>(`/dashboard/actions?portfolio_id=${portfolioId}`),
 
+  dashboardSteps: (portfolioId: string) =>
+    fetchApi<OperatorSteps>(`/dashboard/steps?portfolio_id=${portfolioId}`),
+
+  onboardingStatus: (portfolioId?: string) =>
+    fetchApi<OnboardingStatus>(
+      `/onboarding/status${portfolioId ? `?portfolio_id=${portfolioId}` : ""}`
+    ),
+
   dashboardMetrics: (portfolioId: string) =>
     fetchApi<QualityMetrics>(`/dashboard/metrics?portfolio_id=${portfolioId}`),
+
+  agentConfigHealth: () => fetchApi<AgentConfigHealth>("/agents/config/health"),
+
+  decisionTimeline: (decisionId: string) =>
+    fetchApi<DecisionTimeline>(`/decisions/${decisionId}/timeline`),
+
+  dataProviderInfo: () => fetchApi<{ data_provider: string; is_mock: boolean }>("/data/provider"),
 
   login: (email: string, password: string) =>
     fetchApi<{ access_token: string; email: string }>("/auth/login", {
@@ -372,6 +387,7 @@ export type AgentRunDetail = AgentRun & {
   output?: {
     trace?: { steps?: unknown[]; cio_mode?: string; agent_mode?: string };
     decision_ids?: string[];
+    cio_mode?: string;
   };
   error_message?: string;
   finished_at?: string;
@@ -423,6 +439,62 @@ export type InvestmentProfile = {
   notes: string;
 };
 
+export type OnboardingStatus = {
+  portfolio_id: string;
+  phase: number;
+  completed_count: number;
+  total_count: number;
+  all_complete: boolean;
+  checks: Record<
+    string,
+    { ok: boolean; current: number; required: number; hint: string }
+  >;
+};
+
+export type OperatorStep = {
+  id: string;
+  label: string;
+  href: string;
+  status: "complete" | "active" | "blocked";
+  blocked_reason: string | null;
+};
+
+export type OperatorSteps = {
+  portfolio_id: string;
+  completed_count: number;
+  total_count: number;
+  steps: OperatorStep[];
+};
+
+export type DecisionTimeline = {
+  decision_id: string;
+  current_status: string;
+  events: {
+    key: string;
+    label: string;
+    status: string;
+    at: string | null;
+    detail?: string;
+  }[];
+  agent_runs: {
+    run_id: string;
+    workflow_name: string;
+    status: string;
+    trigger: string;
+    cio_mode?: string;
+    started_at?: string;
+  }[];
+};
+
+export type AgentConfigHealth = {
+  agent_mode: string;
+  structuring_mode: string;
+  llm_model: string;
+  llm_configured: boolean;
+  llm_active: boolean;
+  openai_base_url_set: boolean;
+};
+
 export type DashboardActions = {
   portfolio_id: string;
   review: ReviewSummary;
@@ -431,6 +503,12 @@ export type DashboardActions = {
   approved_decisions: number;
   stale_data_symbols: number;
   data_coverage_pct: number;
+  assumptions_pending?: {
+    decision_id: string;
+    assumption_id: string;
+    text: string;
+    deadline: string;
+  }[];
   event_review_todos?: {
     event_id: string;
     symbols: string[];

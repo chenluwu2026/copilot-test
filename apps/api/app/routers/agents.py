@@ -5,6 +5,8 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.services.factor_service import compute_factors
+from app.config import settings
+from app.services.llm.client import is_llm_available, use_llm_agents
 from app.services.orchestrator import get_agent_config, get_agent_run, list_agent_runs, run_rebalance_workflow
 from app.services.portfolio_agent_service import propose_weights
 from app.services.risk_service import check_risk, portfolio_risk_dashboard
@@ -16,6 +18,18 @@ router = APIRouter(prefix="/agents", tags=["agents"])
 @router.get("/config")
 def agent_config():
     return get_agent_config()
+
+
+@router.get("/config/health")
+def agent_config_health():
+    return {
+        "agent_mode": settings.agent_mode,
+        "structuring_mode": settings.structuring_mode,
+        "llm_model": settings.llm_model,
+        "llm_configured": is_llm_available(),
+        "llm_active": use_llm_agents(),
+        "openai_base_url_set": bool(settings.openai_base_url),
+    }
 
 
 @router.post("/workflows/rebalance/{portfolio_id}")

@@ -99,12 +99,16 @@ export function ResearchEditor({ data }: { data: ResearchDetail }) {
           />
         </label>
       </div>
+      <p className="text-xs text-gray-500">
+        十段式空白段请补充要点；可先使用「生成研究草稿」，再人工定稿。加仓类决策需研究闸门通过。
+      </p>
       {sectionKeys.map((k) => (
         <label key={k} className="block text-sm">
           <span className="text-gray-400">{sectionLabels[k]}</span>
           <textarea
             className="mt-1 min-h-[60px] w-full rounded border border-aims-border bg-aims-bg px-2 py-1"
             value={fa[k]}
+            placeholder={`填写${sectionLabels[k]}…`}
             onChange={(e) => setFa({ ...fa, [k]: e.target.value })}
           />
         </label>

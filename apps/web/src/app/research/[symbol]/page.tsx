@@ -72,9 +72,12 @@ export default async function ResearchDetailPage({
 
   let bars: Awaited<ReturnType<typeof api.barsBySymbol>> = [];
   let financials: Awaited<ReturnType<typeof api.financialsBySymbol>> | null = null;
+  let symbolQuality: { last_bar_date: string | null; freshness: string } | null = null;
   try {
     bars = await api.barsBySymbol(symbol, 120);
     financials = await api.financialsBySymbol(symbol);
+    const dq = await api.dataQuality();
+    symbolQuality = dq.symbols.find((s) => s.symbol === symbol) || null;
   } catch {
     bars = [];
   }
@@ -104,7 +107,19 @@ export default async function ResearchDetailPage({
               {ratingLabel[latest.rating] || latest.rating}
             </span>{" "}
             · v{latest.version} · {latest.agent_name}
+            {latest.created_at && (
+              <> · 更新于 {latest.created_at.slice(0, 10)}</>
+            )}
           </p>
+          {symbolQuality && symbolQuality.freshness !== "ok" && (
+            <p className="mt-1 text-xs text-yellow-400">
+              行情数据 {symbolQuality.freshness === "stale" ? "已过期" : "缺失"}
+              （最新 K 线：{symbolQuality.last_bar_date ?? "无"}）—{" "}
+              <Link href="/data" className="underline">
+                前往同步
+              </Link>
+            </p>
+          )}
         </div>
         <div className="flex gap-2">
           <GenerateResearchButton securityId={security.id} symbol={symbol} />
@@ -148,17 +163,25 @@ export default async function ResearchDetailPage({
       )}
 
       <div className="grid gap-4 lg:grid-cols-2">
-        {sections.map(({ key, label }) => (
-          <Card key={key} title={label}>
-            <p className="text-sm text-gray-300">
-              {typeof fa[key] === "string"
-                ? fa[key]
-                : Array.isArray(fa[key])
-                  ? (fa[key] as string[]).join("；")
-                  : "—"}
-            </p>
-          </Card>
-        ))}
+        {sections.map(({ key, label }) => {
+          const text =
+            typeof fa[key] === "string"
+              ? fa[key]
+              : Array.isArray(fa[key])
+                ? (fa[key] as string[]).join("；")
+                : "";
+          return (
+            <Card key={key} title={label}>
+              <p className="text-sm text-gray-300">
+                {text || (
+                  <span className="italic text-gray-500">
+                    暂无内容 — 可生成研究草稿或手动编辑
+                  </span>
+                )}
+              </p>
+            </Card>
+          );
+        })}
         <Card title="未来 6-12 个月核心变量">
           <ul className="list-disc pl-5 text-sm">
             {(fa.core_variables_6_12m as string[] | undefined)?.map((v) => (
@@ -186,6 +209,12 @@ export default async function ResearchDetailPage({
 
       {scenarios.length > 0 && (
         <Card title="估值情景">
+          <p className="mb-2 text-xs text-gray-500">
+            币种 {latest.scenario_analysis?.currency ?? "—"}
+            {latest.scenario_analysis?.current_price != null &&
+              ` · 现价 ${latest.scenario_analysis.current_price}`}
+            {latest.created_at && ` · 观点更新 ${latest.created_at.slice(0, 10)}`}
+          </p>
           <table className="w-full text-left text-sm">
             <thead className="text-gray-400">
               <tr>

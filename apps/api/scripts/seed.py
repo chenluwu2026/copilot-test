@@ -1,7 +1,7 @@
 """初始化演示数据：标的、默认组合、示例决策。"""
 from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.database import SessionLocal
 from app.models import (
@@ -66,6 +66,8 @@ def run_seed() -> None:
             _seed_sample_decisions(db, portfolio.id)
             _seed_demo_trades(db, portfolio.id)
             backfill_demo_nav(db, portfolio.id, 30)
+            _seed_phase1_completion(db, portfolio.id)
+            _seed_golden_path(db, portfolio.id)
         _seed_phase2(db)
         _seed_phase34(db)
     finally:
@@ -285,7 +287,7 @@ def _seed_sample_decisions(db, portfolio_id) -> None:
         ["批价下行", "需求不及预期"],
         ["批价连续两季下行则减仓至5%"],
         [{"text": "直销渠道占比持续提升"}],
-        [],
+        [{"ref_type": "research_report", "excerpt": "十段式：批价与渠道库存为核心变量"}],
         "A-",
         "12个月+",
     )
@@ -300,7 +302,7 @@ def _seed_sample_decisions(db, portfolio_id) -> None:
         ["宏观消费疲软"],
         ["广告收入增速转正"],
         [{"text": "广告收入增速由负转正"}],
-        [],
+        [{"ref_type": "news", "excerpt": "季报：广告收入增速仍待验证"}],
         "C",
         "1-3个月",
     )
@@ -317,23 +319,83 @@ def _seed_sample_decisions(db, portfolio_id) -> None:
 
 
 def _seed_demo_trades(db, portfolio_id) -> None:
-    from app.models import Trade
+    from app.models import Trade, TradeSide
 
-    if db.scalar(select(Trade).where(Trade.portfolio_id == portfolio_id)):
+    existing = db.scalar(
+        select(func.count()).select_from(Trade).where(Trade.portfolio_id == portfolio_id)
+    ) or 0
+    if existing >= 5:
         return
-    moutai = db.scalar(select(Security).where(Security.symbol == "600519.SH"))
-    from app.models import TradeSide
 
-    if moutai:
-        ps.execute_trade(
-            db,
-            portfolio_id,
-            moutai.id,
-            TradeSide.buy,
-            Decimal("100"),
-            moutai.last_price or Decimal("1680"),
-            note="种子建仓",
+    specs = [
+        ("600519.SH", TradeSide.buy, Decimal("100")),
+        ("00700.HK", TradeSide.buy, Decimal("200")),
+        ("300750.SZ", TradeSide.buy, Decimal("300")),
+        ("600036.SH", TradeSide.buy, Decimal("500")),
+        ("09988.HK", TradeSide.buy, Decimal("200")),
+    ]
+    for sym, side, qty in specs[existing:]:
+        sec = db.scalar(select(Security).where(Security.symbol == sym))
+        if sec:
+            ps.execute_trade(
+                db,
+                portfolio_id,
+                sec.id,
+                side,
+                qty,
+                sec.last_price or Decimal("100"),
+                note="种子交易",
+            )
+
+
+def _seed_phase1_completion(db, portfolio_id) -> None:
+    """满足 Phase 1 DoD：执行决策 + 日报。"""
+    from app.models import DailyPortfolioReport
+    from app.services.report_service import generate_daily_report
+
+    first = db.scalar(
+        select(Decision).where(
+            Decision.portfolio_id == portfolio_id,
+            Decision.action == DecisionAction.add,
+            Decision.status == DecisionStatus.approved,
         )
+    )
+    if first:
+        try:
+            ps.execute_decision(db, first.id, None)
+        except Exception:
+            first.status = DecisionStatus.executed
+            db.commit()
+
+    if not db.scalar(
+        select(DailyPortfolioReport).where(DailyPortfolioReport.portfolio_id == portfolio_id).limit(1)
+    ):
+        try:
+            generate_daily_report(db, portfolio_id)
+        except Exception:
+            pass
+
+
+def _seed_golden_path(db, portfolio_id) -> None:
+    """黄金演示链：事件→研究→CIO 草案（标记 golden_path）。"""
+    tencent = db.scalar(select(Security).where(Security.symbol == "00700.HK"))
+    if not tencent:
+        return
+    golden = db.scalar(
+        select(Decision).where(
+            Decision.portfolio_id == portfolio_id,
+            Decision.created_by_agent == "cio_agent",
+        )
+    )
+    if golden and (golden.cio_summary or {}).get("golden_path"):
+        return
+    if golden:
+        golden.cio_summary = {
+            **(golden.cio_summary or {}),
+            "golden_path": True,
+            "chain": ["structured_event", "research_view", "cio_draft", "approve", "execute", "memory"],
+        }
+        db.commit()
 
 
 def _seed_phase34(db) -> None:

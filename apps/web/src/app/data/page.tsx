@@ -24,6 +24,20 @@ export default async function DataPage() {
         DATA_SYNC_CRON_ENABLED、NEWS_SYNC_CRON_ENABLED）。
       </p>
 
+      <Card title="推荐 Cron（收盘后）">
+        <p className="text-xs text-gray-500">
+          将以下命令加入 VPS / Railway Cron（替换域名与密钥），详见 docs/DAILY_OPERATOR_PLAYBOOK.md
+        </p>
+        <pre className="mt-2 overflow-x-auto rounded bg-aims-bg p-3 text-xs text-gray-300">
+          {`curl -X POST "https://<API>/api/v1/data/sync/cron" -H "X-Cron-Secret: <CRON_SECRET>"`}
+        </pre>
+        {jobs[0]?.started_at && (
+          <p className="mt-2 text-xs text-gray-400">
+            最近作业：{jobs[0].job_type} · {jobs[0].status} · {jobs[0].started_at.slice(0, 19)}
+          </p>
+        )}
+      </Card>
+
       {s && (
         <div className="grid gap-4 sm:grid-cols-4">
           <Card title="标的数">
