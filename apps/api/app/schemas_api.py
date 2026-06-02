@@ -140,6 +140,12 @@ class ConstructTargetsIn(BaseModel):
     max_turnover_pct: float = 40
 
 
+class DecisionPipelineIn(BaseModel):
+    portfolio_id: UUID
+    candidates: list[CandidateWeightIn] = Field(default_factory=list)
+    max_turnover_pct: float = 40
+
+
 class ExecutionSimulateIn(BaseModel):
     side: str
     quantity: float

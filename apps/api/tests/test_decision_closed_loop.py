@@ -18,6 +18,7 @@ from app.models import (
 )
 from app.services.decision_ledger_service import create_ledger, transition_ledger
 from app.services.decision_ledger_service import get_latest_ledger_by_decision
+from app.services.decision_pipeline_service import run_decision_pipeline
 from app.services.decision_service import create_decision, update_decision_status
 from app.services.execution_simulator_service import simulate_execution
 from app.services.portfolio_construction_service import construct_target_weights
@@ -171,6 +172,21 @@ class DecisionClosedLoopTests(unittest.TestCase):
         execute_decision(self.db, decision.id)
         ledger = get_latest_ledger_by_decision(self.db, decision.id)
         self.assertEqual(ledger.status, DecisionLedgerStatus.filled)
+
+    def test_pipeline_runs_and_creates_decisions(self):
+        out = run_decision_pipeline(
+            self.db,
+            portfolio_id=self.portfolio.id,
+            candidates=[
+                {"security_id": self.sec1.id, "score": 0.2},
+                {"security_id": self.sec2.id, "score": 0.8},
+            ],
+            max_turnover_pct=30,
+        )
+        self.assertIn("results", out)
+        self.assertGreaterEqual(len(out["results"]), 1)
+        created = [r for r in out["results"] if r["decision_id"]]
+        self.assertGreaterEqual(len(created), 1)
 
 
 if __name__ == "__main__":

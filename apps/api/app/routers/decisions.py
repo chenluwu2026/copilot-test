@@ -11,12 +11,14 @@ from app.schemas_api import (
     DecisionExecute,
     DecisionLedgerCreate,
     DecisionLedgerTransition,
+    DecisionPipelineIn,
     DecisionStatusUpdate,
     ExecutionSimulateIn,
     FeedbackCreate,
     PretradeRiskCheckIn,
 )
 from app.services import decision_ledger_service as dls
+from app.services import decision_pipeline_service as dps
 from app.services import execution_simulator_service as ess
 from app.services import portfolio_construction_service as pcs
 from app.services import pretrade_risk_service as prs
@@ -202,6 +204,19 @@ def construct_targets(body: ConstructTargetsIn, db: Session = Depends(get_db)):
             db,
             body.portfolio_id,
             [c.model_dump() for c in body.candidates],
+            max_turnover_pct=body.max_turnover_pct,
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+
+
+@router.post("/pipeline/run")
+def run_decision_pipeline(body: DecisionPipelineIn, db: Session = Depends(get_db)):
+    try:
+        return dps.run_decision_pipeline(
+            db,
+            portfolio_id=body.portfolio_id,
+            candidates=[c.model_dump() for c in body.candidates],
             max_turnover_pct=body.max_turnover_pct,
         )
     except ValueError as e:

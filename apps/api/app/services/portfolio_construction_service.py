@@ -40,11 +40,13 @@ def construct_target_weights(
 
     clipped = {k: min(v, max_single) for k, v in raw.items()}
     clipped_sum = sum(clipped.values())
-    if clipped_sum > 0:
+    if clipped_sum <= 0:
+        targets = {}
+    elif clipped_sum > investable:
         factor = investable / clipped_sum
         targets = {k: round(v * factor, 4) for k, v in clipped.items()}
     else:
-        targets = {}
+        targets = {k: round(v, 4) for k, v in clipped.items()}
 
     turnover = sum(abs(targets.get(k, 0.0) - current.get(k, 0.0)) for k in set(targets) | set(current))
     if turnover > max_turnover_pct and turnover > 0:
