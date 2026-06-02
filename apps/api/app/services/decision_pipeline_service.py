@@ -30,6 +30,49 @@ def _execution_schedule(adv_ratio_pct: float) -> dict:
     return {"style": "twap", "slices": 8, "horizon_minutes": 90}
 
 
+def _build_downgrade_advice(risk: dict, target_weight: float, current_weight: float) -> dict:
+    failed = risk.get("failed_gates") or []
+    checks = {c["gate_name"]: c for c in risk.get("checks", [])}
+    severity = "high" if any(g in failed for g in ("cash_buffer_gate", "sector_limit_gate")) else "medium"
+    advice = {"severity": severity, "failed_gates": failed, "suggested_action": "watch", "reason": "风控未通过"}
+
+    if "position_limit_gate" in failed:
+        threshold = float((checks.get("position_limit_gate") or {}).get("threshold") or target_weight)
+        resized = max(0.0, min(threshold, target_weight))
+        advice.update(
+            {
+                "suggested_action": "resize",
+                "suggested_target_weight_pct": round(resized, 4),
+                "reason": f"单票超限，建议从 {target_weight:.2f}% 降到 {resized:.2f}%",
+            }
+        )
+        return advice
+
+    if "liquidity_gate" in failed:
+        advice.update(
+            {
+                "suggested_action": "resize",
+                "suggested_target_weight_pct": round(max(current_weight, target_weight * 0.5), 4),
+                "reason": "流动性不足，建议缩量并延长 TWAP 切片执行",
+            }
+        )
+        return advice
+
+    if "correlation_gate" in failed:
+        advice.update({"suggested_action": "watch", "reason": "相关性超限，建议观察或替换为低相关标的"})
+        return advice
+
+    if "sector_limit_gate" in failed:
+        advice.update({"suggested_action": "watch", "reason": "行业集中度超限，建议转向分散行业"})
+        return advice
+
+    if "cash_buffer_gate" in failed:
+        advice.update({"suggested_action": "watch", "reason": "现金缓冲不足，建议先减仓腾挪现金"})
+        return advice
+
+    return advice
+
+
 def run_decision_pipeline(
     db: Session,
     *,
@@ -155,6 +198,7 @@ def run_decision_pipeline(
                 }
             )
         else:
+            downgrade_advice = _build_downgrade_advice(risk, target_weight, current_weight)
             results.append(
                 {
                     "security_id": item["security_id"],
@@ -166,6 +210,7 @@ def run_decision_pipeline(
                     "target_weight_pct": target_weight,
                     "current_weight_pct": current_weight,
                     "execution_plan": execution_plan,
+                    "downgrade_advice": downgrade_advice,
                 }
             )
 

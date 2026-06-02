@@ -211,6 +211,24 @@ class DecisionClosedLoopTests(unittest.TestCase):
         self.assertEqual(ledger.status, DecisionLedgerStatus.filled)
         self.assertEqual(ledger.execution_result_json.get("mode"), "simulated")
 
+    def test_pipeline_gate_failure_has_downgrade_advice(self):
+        limits = dict(self.portfolio.risk_limits or {})
+        limits["max_adv_pct"] = 0.05
+        self.portfolio.risk_limits = limits
+        self.db.commit()
+        out = run_decision_pipeline(
+            self.db,
+            portfolio_id=self.portfolio.id,
+            candidates=[{"security_id": self.sec2.id, "score": 1.0}],
+            max_turnover_pct=30,
+        )
+        rejected = [r for r in out["results"] if not r["allowed"]]
+        self.assertGreaterEqual(len(rejected), 1)
+        advice = rejected[0].get("downgrade_advice")
+        self.assertIsNotNone(advice)
+        self.assertIn("suggested_action", advice)
+        self.assertIn("failed_gates", advice)
+
 
 if __name__ == "__main__":
     unittest.main()
