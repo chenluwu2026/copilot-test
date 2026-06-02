@@ -2,7 +2,12 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { api, type Portfolio, type Security } from "@/lib/api";
+import {
+  api,
+  type DecisionPipelineResponse,
+  type Portfolio,
+  type Security,
+} from "@/lib/api";
 
 export default function NewDecisionPage() {
   const router = useRouter();
@@ -18,13 +23,20 @@ export default function NewDecisionPage() {
   const [risk, setRisk] = useState("");
   const [review, setReview] = useState("");
   const [error, setError] = useState("");
+  const [pipelineScore, setPipelineScore] = useState(1);
+  const [autoApprove, setAutoApprove] = useState(true);
+  const [autoSimulate, setAutoSimulate] = useState(true);
+  const [pipelineResult, setPipelineResult] = useState<DecisionPipelineResponse | null>(null);
 
   useEffect(() => {
     api.portfolios().then((p) => {
       setPortfolios(p);
       if (p[0]) setPortfolioId(p[0].id);
     });
-    api.securities().then(setSecurities);
+    api.securities().then((s) => {
+      setSecurities(s);
+      if (s[0]) setSecurityId((prev) => prev || s[0].id);
+    });
   }, []);
 
   async function submit(e: React.FormEvent) {
@@ -50,9 +62,102 @@ export default function NewDecisionPage() {
     }
   }
 
+  async function runPipeline(e: React.FormEvent) {
+    e.preventDefault();
+    if (!portfolioId || !securityId) return;
+    setError("");
+    setPipelineResult(null);
+    try {
+      const out = await api.runDecisionPipeline({
+        portfolio_id: portfolioId,
+        candidates: [{ security_id: securityId, score: pipelineScore }],
+        max_turnover_pct: 30,
+        auto_approve: autoApprove,
+        auto_execute_simulated: autoSimulate,
+        simulated_fill_ratio: 0.7,
+        auto_retry_resize: true,
+        max_retry_steps: 3,
+        retry_decay_factor: 0.75,
+        auto_apply_fallback_partial: true,
+      });
+      setPipelineResult(out);
+    } catch (err) {
+      setError(String(err));
+    }
+  }
+
   return (
     <div className="mx-auto max-w-lg space-y-4">
       <h1 className="text-2xl font-bold">新建决策</h1>
+      <form onSubmit={runPipeline} className="space-y-3 rounded border border-aims-border p-3 text-sm">
+        <h2 className="font-semibold text-aims-accent">智能流水线（推荐）</h2>
+        <p className="text-xs text-gray-400">
+          自动执行：目标权重→风控→重试/降级→建单，可选自动审批与模拟执行。
+        </p>
+        <label className="block">
+          候选分数
+          <input
+            type="number"
+            step="0.1"
+            className="mt-1 w-full rounded border border-aims-border bg-aims-card p-2"
+            value={pipelineScore}
+            onChange={(e) => setPipelineScore(Number(e.target.value))}
+          />
+        </label>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={autoApprove} onChange={(e) => setAutoApprove(e.target.checked)} />
+            自动审批
+          </label>
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={autoSimulate} onChange={(e) => setAutoSimulate(e.target.checked)} />
+            自动模拟执行
+          </label>
+        </div>
+        <button type="submit" className="rounded bg-aims-research px-4 py-2 text-white">
+          运行流水线
+        </button>
+      </form>
+
+      {pipelineResult && (
+        <div className="space-y-2 rounded border border-aims-border p-3 text-sm">
+          <p className="text-xs text-gray-400">
+            目标现金占比：{pipelineResult.cash_target_pct}% · 结果 {pipelineResult.results.length} 条
+          </p>
+          {pipelineResult.results.map((r) => (
+            <div key={`${r.security_id}-${r.decision_id || "none"}`} className="rounded bg-aims-card p-2">
+              <p>
+                <strong>{r.symbol || r.security_id}</strong> · 动作 {r.action} ·{" "}
+                {r.current_weight_pct}% → {r.target_weight_pct}% ·{" "}
+                {r.allowed ? "通过" : "未通过"}
+              </p>
+              {r.decision_id && <p className="text-xs text-aims-accent">decision_id: {r.decision_id}</p>}
+              {r.execution_plan && (
+                <p className="text-xs text-gray-400">
+                  滑点 {r.execution_plan.estimated_slippage_bps.toFixed(2)} bps · shortfall{" "}
+                  {r.execution_plan.estimated_shortfall.toFixed(2)} · 执行 {r.execution_plan.schedule?.style}
+                </p>
+              )}
+              {r.downgrade_advice && (
+                <p className="text-xs text-yellow-400">
+                  降级建议：{r.downgrade_advice.suggested_action}（{r.downgrade_advice.reason}）
+                </p>
+              )}
+              {r.retry?.attempted && (
+                <p className="text-xs text-gray-400">
+                  重试：{r.retry.passed ? "通过" : "失败"} · fallback {r.retry.fallback_action || "—"}
+                </p>
+              )}
+              {r.fallback?.applied && (
+                <p className="text-xs text-aims-research">
+                  已执行 fallback：{r.fallback.mode}（目标 {r.fallback.target_weight_pct}%）
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
       <form onSubmit={submit} className="space-y-3 text-sm">
         <label className="block">
           组合

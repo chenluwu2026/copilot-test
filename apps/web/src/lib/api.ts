@@ -72,6 +72,11 @@ export const api = {
   decision: (id: string) => fetchApi<Decision>(`/decisions/${id}`),
   createDecision: (body: object) =>
     fetchApi<Decision>("/decisions", { method: "POST", body: JSON.stringify(body) }),
+  runDecisionPipeline: (body: DecisionPipelineRequest) =>
+    fetchApi<DecisionPipelineResponse>("/decisions/pipeline/run", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
   updateDecisionStatus: (id: string, status: string) =>
     fetchApi<Decision>(`/decisions/${id}/status`, {
       method: "PATCH",
@@ -345,6 +350,57 @@ export type Decision = {
   assumptions: { text: string; measurable: boolean }[];
   references: { ref_type: string; excerpt?: string }[];
   created_at?: string;
+};
+
+export type DecisionPipelineRequest = {
+  portfolio_id: string;
+  candidates: { security_id: string; score: number }[];
+  max_turnover_pct?: number;
+  auto_approve?: boolean;
+  auto_execute_simulated?: boolean;
+  simulated_fill_ratio?: number;
+  auto_retry_resize?: boolean;
+  max_retry_steps?: number;
+  retry_decay_factor?: number;
+  auto_apply_fallback_partial?: boolean;
+};
+
+export type DecisionPipelineResult = {
+  security_id: string;
+  symbol?: string;
+  allowed: boolean;
+  decision_id?: string | null;
+  action: string;
+  target_weight_pct: number;
+  current_weight_pct: number;
+  execution_plan?: {
+    order_notional: number;
+    estimated_quantity: number;
+    estimated_slippage_bps: number;
+    estimated_shortfall: number;
+    adv_ratio_pct: number;
+    schedule?: { style: string; slices: number; horizon_minutes: number };
+  };
+  downgrade_advice?: {
+    severity?: string;
+    failed_gates?: string[];
+    suggested_action?: string;
+    suggested_target_weight_pct?: number;
+    reason?: string;
+  };
+  retry?: {
+    attempted?: boolean;
+    passed?: boolean;
+    fallback_action?: string;
+  };
+  fallback?: { applied?: boolean; mode?: string; target_weight_pct?: number };
+};
+
+export type DecisionPipelineResponse = {
+  portfolio_id: string;
+  targets: { security_id: string; symbol?: string; target_weight_pct: number; current_weight_pct: number }[];
+  cash_target_pct: number;
+  results: DecisionPipelineResult[];
 };
 
 export type Watchlist = {
