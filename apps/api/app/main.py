@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 
 from app.config import settings
 from app.database import Base, engine
+from app.schema_compat import apply_schema_compat
 from app.routers import (
     agents,
     auth,
@@ -50,6 +51,7 @@ def _maybe_alembic_upgrade() -> None:
 async def lifespan(app: FastAPI):
     _maybe_alembic_upgrade()
     Base.metadata.create_all(bind=engine)
+    apply_schema_compat(engine)
     if settings.run_seed:
         run_seed()
     start_scheduler()
