@@ -62,16 +62,31 @@ export const api = {
   securities: (q?: string) =>
     fetchApi<Security[]>(`/securities${q ? `?q=${encodeURIComponent(q)}` : ""}`),
 
-  decisions: (portfolioId?: string, status?: string) => {
+  decisions: (portfolioId?: string, status?: string, enrichLedger = false) => {
     const params = new URLSearchParams();
     if (portfolioId) params.set("portfolio_id", portfolioId);
     if (status) params.set("status", status);
+    if (enrichLedger) params.set("enrich_ledger", "true");
     const q = params.toString();
     return fetchApi<Decision[]>(`/decisions${q ? `?${q}` : ""}`);
   },
+  fmLatestTargets: (portfolioId: string) =>
+    fetchApi<FmLatestTargets>(`/fm/latest-targets?portfolio_id=${portfolioId}`),
   decision: (id: string) => fetchApi<Decision>(`/decisions/${id}`),
   createDecision: (body: object) =>
     fetchApi<Decision>("/decisions", { method: "POST", body: JSON.stringify(body) }),
+  runDecisionPipeline: (body: DecisionPipelineRequest) =>
+    fetchApi<DecisionPipelineResponse>("/decisions/pipeline/run", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  fmDailyRun: (body: FmDailyRunRequest) =>
+    fetchApi<FmDailyRunResponse>("/fm/daily-run", { method: "POST", body: JSON.stringify(body) }),
+  fmRuns: (portfolioId: string, limit = 30) =>
+    fetchApi<FmRunSummary[]>(`/fm/runs?portfolio_id=${portfolioId}&limit=${limit}`),
+  fmRun: (portfolioId: string, runId: string) =>
+    fetchApi<FmRunDetail>(`/fm/runs/${encodeURIComponent(runId)}?portfolio_id=${portfolioId}`),
+  decisionLedger: (decisionId: string) => fetchApi<DecisionLedger>(`/decisions/${decisionId}/ledger`),
   updateDecisionStatus: (id: string, status: string) =>
     fetchApi<Decision>(`/decisions/${id}/status`, {
       method: "PATCH",
@@ -153,6 +168,16 @@ export const api = {
     ),
   runReview: (decisionId: string) =>
     fetchApi<ReviewRunResult>(`/review/decisions/${decisionId}/run`, { method: "POST" }),
+  runReviewBatch: (body: BatchReviewRequest) =>
+    fetchApi<BatchReviewResult>("/review/batch-run", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  batchDecisionActions: (body: BatchDecisionActionRequest) =>
+    fetchApi<BatchDecisionActionResult>("/decisions/batch-actions", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
   monthlyRetrospective: (portfolioId: string, year?: number, month?: number) => {
     const params = new URLSearchParams();
     if (year) params.set("year", String(year));
@@ -345,6 +370,144 @@ export type Decision = {
   assumptions: { text: string; measurable: boolean }[];
   references: { ref_type: string; excerpt?: string }[];
   created_at?: string;
+  created_by_agent?: string;
+  ledger_status?: string | null;
+  run_id?: string | null;
+  has_postmortem?: boolean;
+};
+
+export type DecisionLedger = {
+  id: string;
+  portfolio_id: string;
+  security_id: string;
+  decision_id?: string | null;
+  run_id?: string | null;
+  status: string;
+  proposal_json?: Record<string, unknown>;
+  risk_result_json?: Record<string, unknown>;
+  execution_plan_json?: Record<string, unknown>;
+  execution_result_json?: Record<string, unknown>;
+  postmortem_json?: Record<string, unknown>;
+  created_at?: string;
+};
+
+export type FmLatestTargets = {
+  portfolio_id: string;
+  run_id: string | null;
+  created_at: string | null;
+  rejection_rate_pct: number;
+  ledger_count?: number;
+  decision_count?: number;
+  targets: {
+    security_id: string;
+    symbol?: string | null;
+    name?: string | null;
+    current_weight_pct: number;
+    target_weight_pct: number;
+  }[];
+  cash_target_pct: number | null;
+};
+
+export type FmRunSummary = {
+  run_id: string;
+  portfolio_id: string;
+  ledger_count: number;
+  decision_count: number;
+  risk_rejected: number;
+  filled: number;
+  reviewed: number;
+  rejection_rate_pct: number;
+  created_at: string | null;
+};
+
+export type FmRunDetail = {
+  run_id: string;
+  portfolio_id: string;
+  ledger_count: number;
+  gate_failure_stats: Record<string, number>;
+  ledgers: DecisionLedger[];
+};
+
+export type FmDailyRunRequest = {
+  portfolio_id: string;
+  max_turnover_pct?: number;
+  auto_approve?: boolean;
+  auto_execute_simulated?: boolean;
+  simulated_fill_ratio?: number;
+  auto_retry_resize?: boolean;
+  max_retry_steps?: number;
+  retry_decay_factor?: number;
+  auto_apply_fallback_partial?: boolean;
+  candidate_limit?: number;
+};
+
+export type FmDailyRunResponse = {
+  run_id: string;
+  portfolio_id: string;
+  summary_md: string;
+  data_readiness: {
+    coverage_pct: number;
+    stale_or_missing_symbols: number;
+    ready: boolean;
+  };
+  candidate_count: number;
+  pipeline: DecisionPipelineResponse | null;
+  counts: {
+    created_decisions: number;
+    rejected: number;
+    fallback_applied: number;
+  };
+};
+
+export type DecisionPipelineRequest = {
+  portfolio_id: string;
+  candidates: { security_id: string; score: number }[];
+  max_turnover_pct?: number;
+  auto_approve?: boolean;
+  auto_execute_simulated?: boolean;
+  simulated_fill_ratio?: number;
+  auto_retry_resize?: boolean;
+  max_retry_steps?: number;
+  retry_decay_factor?: number;
+  auto_apply_fallback_partial?: boolean;
+};
+
+export type DecisionPipelineResult = {
+  security_id: string;
+  symbol?: string;
+  allowed: boolean;
+  decision_id?: string | null;
+  action: string;
+  target_weight_pct: number;
+  current_weight_pct: number;
+  execution_plan?: {
+    order_notional: number;
+    estimated_quantity: number;
+    estimated_slippage_bps: number;
+    estimated_shortfall: number;
+    adv_ratio_pct: number;
+    schedule?: { style: string; slices: number; horizon_minutes: number };
+  };
+  downgrade_advice?: {
+    severity?: string;
+    failed_gates?: string[];
+    suggested_action?: string;
+    suggested_target_weight_pct?: number;
+    reason?: string;
+  };
+  retry?: {
+    attempted?: boolean;
+    passed?: boolean;
+    fallback_action?: string;
+  };
+  fallback?: { applied?: boolean; mode?: string; target_weight_pct?: number };
+};
+
+export type DecisionPipelineResponse = {
+  portfolio_id: string;
+  targets: { security_id: string; symbol?: string; target_weight_pct: number; current_weight_pct: number }[];
+  cash_target_pct: number;
+  results: DecisionPipelineResult[];
 };
 
 export type Watchlist = {
@@ -604,6 +767,12 @@ export type AgentConfig = {
   alembic_upgrade_on_start?: boolean;
 };
 
+export type DriftAlert = {
+  level: "info" | "warning";
+  code: string;
+  message: string;
+};
+
 export type QualityMetrics = {
   portfolio_id: string;
   draft_count: number;
@@ -613,6 +782,10 @@ export type QualityMetrics = {
   reference_coverage_pct: number;
   rebalance_runs: number;
   llm_cio_run_pct: number;
+  pipeline_rejection_rate_pct?: number;
+  avg_weight_drift_pct?: number;
+  gate_failure_stats?: Record<string, number>;
+  drift_alerts?: DriftAlert[];
   agent_mode_hint: string;
 };
 
@@ -668,6 +841,9 @@ export type OpenDecision = {
   material_move?: boolean;
   urgency?: "overdue" | "due" | "ok" | "unknown";
   pending_memory_id?: string | null;
+  ledger_status?: string | null;
+  run_id?: string | null;
+  has_postmortem?: boolean;
 };
 
 export type ResearchQuality = {
@@ -708,6 +884,47 @@ export type ReviewRunResult = {
   outcome_summary?: string;
   price_metadata?: Record<string, unknown>;
   review_quality?: ReviewQuality;
+  ledger_status?: string | null;
+  ledger_has_postmortem?: boolean;
+  run_id?: string | null;
+};
+
+export type BatchReviewRequest = {
+  portfolio_id: string;
+  decision_ids?: string[];
+  urgency?: "due" | "overdue" | "all";
+  limit?: number;
+};
+
+export type BatchReviewResult = {
+  portfolio_id: string;
+  urgency: string;
+  requested: number;
+  succeeded: number;
+  failed: number;
+  memory_ids: string[];
+  results: {
+    decision_id: string;
+    ok: boolean;
+    symbol?: string;
+    return_since_decision_pct?: number;
+    memory_id?: string | null;
+    ledger_has_postmortem?: boolean;
+    error?: string;
+  }[];
+};
+
+export type BatchDecisionActionRequest = {
+  decision_ids: string[];
+  action: "approve" | "cancel" | "execute";
+};
+
+export type BatchDecisionActionResult = {
+  action: string;
+  requested: number;
+  succeeded: number;
+  failed: number;
+  results: { decision_id: string; ok: boolean; error?: string }[];
 };
 
 export type MonthlyRetrospective = {

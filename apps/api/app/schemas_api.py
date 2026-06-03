@@ -99,6 +99,20 @@ class DecisionStatusUpdate(BaseModel):
     status: str
 
 
+class BatchDecisionActionIn(BaseModel):
+    decision_ids: list[UUID] = Field(default_factory=list, min_length=1, max_length=50)
+    action: str = Field(description="approve | cancel | execute")
+
+
+class BatchReviewIn(BaseModel):
+    portfolio_id: UUID
+    decision_ids: list[UUID] | None = None
+    urgency: str | None = Field(
+        default=None, description="due（含逾期）| overdue | all；与 decision_ids 二选一"
+    )
+    limit: int = Field(default=20, ge=1, le=50)
+
+
 class DecisionExecute(BaseModel):
     price: float | None = None
 

@@ -98,6 +98,12 @@ def _collect_open_decisions(db: Session, portfolio_id: UUID, profile: dict) -> l
             (str(m.id) for m in linked if m.pending and not m.active),
             None,
         )
+        from app.services.decision_ledger_service import get_latest_ledger_by_decision
+
+        ledger = get_latest_ledger_by_decision(db, d.id)
+        ledger_status = ledger.status.value if ledger else None
+        run_id = ledger.run_id if ledger else None
+        has_postmortem = bool(ledger and (ledger.postmortem_json or {}))
         items.append(
             {
                 "decision_id": str(d.id),
@@ -111,6 +117,9 @@ def _collect_open_decisions(db: Session, portfolio_id: UUID, profile: dict) -> l
                 "exit_price": meta.get("exit_price"),
                 "has_outcome": outcome is not None,
                 "pending_memory_id": pending_memory_id,
+                "ledger_status": ledger_status,
+                "run_id": run_id,
+                "has_postmortem": has_postmortem,
                 **due,
             }
         )

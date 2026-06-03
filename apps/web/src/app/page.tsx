@@ -6,6 +6,7 @@ import { DashboardEventReview } from "@/components/DashboardEventReview";
 import { DashboardQualityMetrics } from "@/components/DashboardQualityMetrics";
 import { DashboardOnboardingProgress } from "@/components/DashboardOnboardingProgress";
 import { DashboardOperatorSteps } from "@/components/DashboardOperatorSteps";
+import { FundManagerConsole } from "@/components/FundManagerConsole";
 import { api } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
@@ -55,6 +56,12 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">Dashboard</h1>
+
+      <FundManagerConsole
+        portfolioId={p.id}
+        initialDrafts={actions?.draft_decisions ?? 0}
+        initialApproved={actions?.approved_decisions ?? 0}
+      />
 
       <DashboardOnboardingProgress status={onboarding} />
       <DashboardOperatorSteps data={operatorSteps} />

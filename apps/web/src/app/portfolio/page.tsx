@@ -1,6 +1,7 @@
 import { Card } from "@/components/Card";
 import { MacroScenarioPanel } from "@/components/MacroScenarioPanel";
 import { RebalanceButton } from "@/components/RebalanceButton";
+import { PortfolioLatestFmTargets } from "@/components/PortfolioLatestFmTargets";
 import { RiskMeter } from "@/components/RiskMeter";
 import { api } from "@/lib/api";
 
@@ -55,6 +56,8 @@ export default async function PortfolioPage() {
           <RiskMeter risk={risk} />
         </Card>
       )}
+
+      <PortfolioLatestFmTargets portfolioId={p.id} />
 
       <Card title="持仓">
         <table className="w-full text-left text-sm">

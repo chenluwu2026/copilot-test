@@ -86,6 +86,7 @@ def run_decision_pipeline(
     max_retry_steps: int = 3,
     retry_decay_factor: float = 0.75,
     auto_apply_fallback_partial: bool = True,
+    run_id: str | None = None,
 ) -> dict:
     plan = pcs.construct_target_weights(
         db,
@@ -154,6 +155,9 @@ def run_decision_pipeline(
             holding_period="1-3个月",
             cio_summary=None,
             created_by_agent="decision_pipeline",
+            run_id=run_id,
+            execution_plan_json=execution_plan_obj,
+            risk_result_json=risk_result,
         )
         auto_approved = False
         simulated_execution = None

@@ -18,8 +18,12 @@ from app.models import (
     Security,
     User,
 )
-from app.services.decision_ledger_service import create_ledger, transition_ledger
-from app.services.decision_ledger_service import get_latest_ledger_by_decision
+from app.services.decision_ledger_service import (
+    create_ledger,
+    get_latest_ledger_by_decision,
+    transition_ledger,
+    write_postmortem_for_decision,
+)
 from app.services.decision_pipeline_service import run_decision_pipeline
 from app.services.decision_service import create_decision, update_decision_status
 from app.services.execution_simulator_service import simulate_execution
@@ -149,6 +153,39 @@ class DecisionClosedLoopTests(unittest.TestCase):
             to_status=DecisionLedgerStatus.submitted,
         )
         self.assertEqual(ledger.status, DecisionLedgerStatus.submitted)
+
+    def test_write_postmortem_marks_ledger_reviewed(self):
+        decision = create_decision(
+            self.db,
+            self.portfolio.id,
+            self.sec1.id,
+            action=DecisionAction.buy,
+            decision_reason="复盘回写",
+            current_weight_pct=0,
+            target_weight_pct=5,
+            main_risks=[],
+            review_conditions=[],
+            assumptions=[],
+            references=[],
+        )
+        ledger = get_latest_ledger_by_decision(self.db, decision.id)
+        transition_ledger(self.db, ledger_id=ledger.id, to_status=DecisionLedgerStatus.approved)
+        transition_ledger(self.db, ledger_id=ledger.id, to_status=DecisionLedgerStatus.submitted)
+        transition_ledger(
+            self.db,
+            ledger_id=ledger.id,
+            to_status=DecisionLedgerStatus.filled,
+            execution_result_json={"mode": "simulated"},
+        )
+        updated = write_postmortem_for_decision(
+            self.db,
+            decision_id=decision.id,
+            postmortem_json={"return_since_decision_pct": 3.5, "outcome_summary": "ok"},
+        )
+        self.db.commit()
+        self.assertIsNotNone(updated)
+        self.assertEqual(updated.status, DecisionLedgerStatus.reviewed)
+        self.assertEqual(updated.postmortem_json.get("return_since_decision_pct"), 3.5)
 
     def test_decision_auto_sync_to_ledger(self):
         decision = create_decision(

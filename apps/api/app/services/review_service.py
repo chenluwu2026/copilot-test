@@ -16,6 +16,7 @@ from app.models import (
 )
 from app.services.market_data_service import get_close_on_or_before, get_latest_close
 from app.services.memory_service import create_memory
+from app.services import decision_ledger_service as dls
 from app.services.portfolio_service import get_portfolio_summary
 
 
@@ -256,9 +257,106 @@ def review_decision(db: Session, decision_id: UUID) -> tuple[DecisionOutcome, st
         )
         memory_id = str(mem.id)
 
+    dls.write_postmortem_for_decision(
+        db,
+        decision_id=decision_id,
+        postmortem_json={
+            "reviewed_at": datetime.now(timezone.utc).isoformat(),
+            "return_since_decision_pct": float(ret),
+            "outcome_summary": summary,
+            "what_went_right": right,
+            "what_went_wrong": wrong,
+            "assumption_results": assumption_results,
+            "price_metadata": price_meta,
+            "memory_id": memory_id,
+        },
+    )
+
     db.commit()
     db.refresh(outcome)
     return outcome, memory_id
+
+
+def batch_review_decisions(
+    db: Session,
+    *,
+    portfolio_id: UUID,
+    decision_ids: list[UUID] | None = None,
+    urgency: str | None = None,
+    limit: int = 20,
+) -> dict:
+    from app.services.profile_service import get_investment_profile
+    from app.services.review_quality_service import build_review_quality
+    from app.services.review_reminder_service import list_open_decisions_enriched
+    from app.services.user_context import get_default_user
+
+    user = get_default_user(db)
+    profile = get_investment_profile(user)
+    open_items = list_open_decisions_enriched(db, portfolio_id, profile)
+
+    if decision_ids:
+        id_set = {str(x) for x in decision_ids}
+        candidates = [i for i in open_items if i["decision_id"] in id_set]
+    else:
+        u = (urgency or "due").lower()
+        if u == "overdue":
+            candidates = [i for i in open_items if i.get("urgency") == "overdue"]
+        elif u == "all":
+            candidates = list(open_items)
+        else:
+            candidates = [
+                i
+                for i in open_items
+                if i.get("urgency") in ("due", "overdue") or i.get("review_due")
+            ]
+
+    candidates = candidates[:limit]
+    results: list[dict] = []
+    succeeded = 0
+    failed = 0
+    memory_ids: list[str] = []
+
+    for item in candidates:
+        did = UUID(item["decision_id"])
+        try:
+            outcome, memory_id = review_decision(db, did)
+            quality = build_review_quality(db, did, memory_id=memory_id)
+            from app.services.decision_ledger_service import get_latest_ledger_by_decision
+
+            ledger = get_latest_ledger_by_decision(db, did)
+            if memory_id:
+                memory_ids.append(memory_id)
+            succeeded += 1
+            results.append(
+                {
+                    "decision_id": str(did),
+                    "ok": True,
+                    "symbol": item.get("symbol"),
+                    "return_since_decision_pct": float(outcome.return_since_decision_pct or 0),
+                    "memory_id": memory_id,
+                    "ledger_has_postmortem": bool(ledger and (ledger.postmortem_json or {})),
+                }
+            )
+        except Exception as e:
+            failed += 1
+            results.append(
+                {
+                    "decision_id": str(did),
+                    "ok": False,
+                    "symbol": item.get("symbol"),
+                    "error": str(e),
+                }
+            )
+
+    return {
+        "portfolio_id": str(portfolio_id),
+        "urgency": urgency or ("ids" if decision_ids else "due"),
+        "requested": len(candidates),
+        "succeeded": succeeded,
+        "failed": failed,
+        "memory_ids": memory_ids,
+        "results": results,
+    }
 
 
 def promote_outcome_to_memory(
