@@ -13,7 +13,11 @@ import { api } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
-export default async function ReviewPage() {
+export default async function ReviewPage({
+  searchParams,
+}: {
+  searchParams: { run_id?: string };
+}) {
   const portfolios = await api.portfolios();
   const pid = portfolios[0]?.id;
   let reportMd = "";
@@ -58,7 +62,11 @@ export default async function ReviewPage() {
 
       <Card title="待复盘决策 (Review Agent)">
         {pid ? (
-          <ReviewBoard items={open} portfolioId={pid} />
+          <ReviewBoard
+            items={open}
+            portfolioId={pid}
+            initialRunId={searchParams.run_id}
+          />
         ) : (
           <p className="text-sm text-gray-500">暂无组合</p>
         )}

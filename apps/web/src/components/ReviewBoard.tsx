@@ -3,9 +3,13 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import type { OpenDecision } from "@/lib/api";
+import type { BatchReviewResult, OpenDecision } from "@/lib/api";
 import { api } from "@/lib/api";
 import { buildRunGroups, toggleSetMember } from "@/lib/runGroups";
+import {
+  BatchOperationResultPanel,
+  type BatchResultRow,
+} from "@/components/BatchOperationResultPanel";
 
 const urgencyLabel: Record<string, string> = {
   overdue: "已逾期",
@@ -111,33 +115,81 @@ function ReviewRow({
   );
 }
 
+function rowsFromReviewBatch(res: BatchReviewResult, items: OpenDecision[]): BatchResultRow[] {
+  const byId = new Map(items.map((d) => [d.decision_id, d]));
+  return res.results.map((r) => {
+    const d = byId.get(r.decision_id);
+    return {
+      id: r.decision_id,
+      ok: r.ok,
+      label: d ? `${d.name} (${d.symbol})` : r.symbol || r.decision_id.slice(0, 8),
+      detail: r.ok
+        ? `${r.return_since_decision_pct ?? "—"}%${r.ledger_has_postmortem ? " · 已回写账本" : ""}`
+        : r.error,
+      href: `/decisions/${r.decision_id}#decision-ledger`,
+    };
+  });
+}
+
 export function ReviewBoard({
   items,
   portfolioId,
+  initialRunId,
 }: {
   items: OpenDecision[];
   portfolioId: string;
+  initialRunId?: string;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [runFilter, setRunFilter] = useState(initialRunId || "");
+  const [batchPanel, setBatchPanel] = useState<{
+    title: string;
+    res: BatchReviewResult;
+  } | null>(null);
 
-  const groups = useMemo(() => buildRunGroups(items, (d) => d.run_id), [items]);
+  const filteredItems = useMemo(
+    () => (runFilter ? items.filter((d) => d.run_id === runFilter) : items),
+    [items, runFilter]
+  );
+
+  const runOptions = useMemo(() => {
+    const ids = new Set<string>();
+    for (const d of items) {
+      if (d.run_id) ids.add(d.run_id);
+    }
+    return Array.from(ids).sort().reverse();
+  }, [items]);
+
+  const groups = useMemo(
+    () => buildRunGroups(filteredItems, (d) => d.run_id),
+    [filteredItems]
+  );
 
   const dueCount = useMemo(
     () =>
-      items.filter(
+      filteredItems.filter(
         (d) => d.urgency === "due" || d.urgency === "overdue" || d.review_due
       ).length,
-    [items]
+    [filteredItems]
   );
 
-  async function finishBatchReview(res: Awaited<ReturnType<typeof api.runReviewBatch>>) {
-    let msg = `批量复盘完成：成功 ${res.succeeded}，失败 ${res.failed}`;
+  function applyRunFilter(runId: string) {
+    setRunFilter(runId);
+    if (runId) router.push(`/review?run_id=${encodeURIComponent(runId)}`);
+    else router.push("/review");
+  }
+
+  async function finishBatchReview(res: BatchReviewResult, label: string) {
+    setBatchPanel({ title: `批量复盘 · ${label}`, res });
+    const failedIds = new Set(res.results.filter((r) => !r.ok).map((r) => r.decision_id));
+    setSelected(failedIds);
     if (res.memory_ids.length) {
-      msg += `\n生成 ${res.memory_ids.length} 条待确认记忆。`;
-      const activate = confirm(`${msg}\n\n是否全部激活这些记忆？`);
+      const activate = confirm(
+        `批量复盘完成（成功 ${res.succeeded}，失败 ${res.failed}）。\n生成 ${res.memory_ids.length} 条待确认记忆，是否全部激活？`
+      );
       if (activate) {
         for (const mid of res.memory_ids) {
           try {
@@ -147,10 +199,7 @@ export function ReviewBoard({
           }
         }
       }
-    } else {
-      alert(msg);
     }
-    setSelected(new Set());
     router.refresh();
   }
 
@@ -200,7 +249,7 @@ export function ReviewBoard({
         decision_ids: decisionIds.slice(0, 20),
         limit: 20,
       });
-      await finishBatchReview(res);
+      await finishBatchReview(res, label);
     } catch (e) {
       alert(String(e));
     } finally {
@@ -209,7 +258,7 @@ export function ReviewBoard({
   }
 
   async function batchReview(urgency: "due" | "all") {
-    const n = urgency === "due" ? dueCount : items.length;
+    const n = urgency === "due" ? dueCount : filteredItems.length;
     if (n === 0) {
       alert(urgency === "due" ? "暂无到期/逾期待复盘项" : "暂无待复盘决策");
       return;
@@ -217,17 +266,34 @@ export function ReviewBoard({
     const ok = confirm(
       urgency === "due"
         ? `将对 ${n} 条到期/逾期待复盘决策依次运行复盘（最多 20 条），并回写账本。继续？`
-        : `将对全部 ${n} 条待复盘决策依次运行复盘（最多 20 条）。继续？`
+        : `将对当前筛选的 ${n} 条待复盘决策依次运行复盘（最多 20 条）。继续？`
     );
     if (!ok) return;
     setLoading(`batch-${urgency}`);
     try {
+      const ids =
+        urgency === "due"
+          ? filteredItems
+              .filter(
+                (d) =>
+                  d.urgency === "due" || d.urgency === "overdue" || d.review_due
+              )
+              .map((d) => d.decision_id)
+          : filteredItems.map((d) => d.decision_id);
       const res = await api.runReviewBatch({
         portfolio_id: portfolioId,
-        urgency,
+        decision_ids: ids.slice(0, 20),
         limit: 20,
       });
-      await finishBatchReview(res);
+      const label =
+        urgency === "due"
+          ? runFilter
+            ? `到期 · ${runFilter}`
+            : "到期"
+          : runFilter
+            ? `批次 ${runFilter}`
+            : "全部";
+      await finishBatchReview(res, label);
     } catch (e) {
       alert(String(e));
     } finally {
@@ -254,6 +320,46 @@ export function ReviewBoard({
 
   return (
     <div className="space-y-4">
+      {batchPanel && (
+        <BatchOperationResultPanel
+          title={batchPanel.title}
+          succeeded={batchPanel.res.succeeded}
+          failed={batchPanel.res.failed}
+          rows={rowsFromReviewBatch(batchPanel.res, items)}
+          onDismiss={() => setBatchPanel(null)}
+        />
+      )}
+
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <label className="flex items-center gap-2 text-xs text-gray-500">
+          批次筛选
+          <select
+            value={runFilter}
+            onChange={(e) => applyRunFilter(e.target.value)}
+            className="rounded border border-aims-border bg-aims-bg px-2 py-1 text-sm text-gray-300"
+          >
+            <option value="">全部（{items.length}）</option>
+            {runOptions.map((rid) => (
+              <option key={rid} value={rid}>
+                {rid}（{items.filter((d) => d.run_id === rid).length}）
+              </option>
+            ))}
+          </select>
+        </label>
+        {runFilter && (
+          <Link
+            href={`/fm/runs/${encodeURIComponent(runFilter)}`}
+            className="text-xs text-aims-accent underline"
+          >
+            批次详情 →
+          </Link>
+        )}
+      </div>
+
+      {filteredItems.length === 0 ? (
+        <p className="text-sm text-gray-500">该批次下暂无待复盘决策</p>
+      ) : null}
+
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <button
           type="button"
@@ -269,7 +375,7 @@ export function ReviewBoard({
           onClick={() => batchReview("all")}
           className="rounded border border-aims-border px-3 py-1.5 text-gray-300 disabled:opacity-50"
         >
-          {loading === "batch-all" ? "处理中…" : `批量复盘（全部 ${items.length}）`}
+          {loading === "batch-all" ? "处理中…" : `批量复盘（当前 ${filteredItems.length}）`}
         </button>
         {selectedIds.length > 0 && (
           <button
@@ -283,10 +389,12 @@ export function ReviewBoard({
         )}
         <span className="text-xs text-gray-500">
           按 run_id 分组 · 共 {groups.length} 组 · 单次最多 20 条
+          {runFilter ? ` · 已筛批次` : ""}
         </span>
       </div>
 
-      {groups.map((g) => {
+      {filteredItems.length > 0 &&
+        groups.map((g) => {
         const isCollapsed = collapsed[g.key] ?? false;
         const groupIds = g.items.map((d) => d.decision_id);
         const allSelected = groupIds.length > 0 && groupIds.every((id) => selected.has(id));

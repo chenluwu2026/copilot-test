@@ -2,23 +2,66 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
-import type { Decision } from "@/lib/api";
+import { useEffect, useMemo, useState } from "react";
+import type { BatchDecisionActionResult, Decision } from "@/lib/api";
 import { api } from "@/lib/api";
 import { buildRunGroups, toggleSetMember } from "@/lib/runGroups";
+import { saveInboxSelection, type InboxTab } from "@/lib/inboxSelection";
 import { DecisionInboxTable } from "@/components/DecisionInboxTable";
+import {
+  BatchOperationResultPanel,
+  type BatchResultRow,
+} from "@/components/BatchOperationResultPanel";
+
+function rowsFromBatch(
+  res: BatchDecisionActionResult,
+  items: Decision[]
+): BatchResultRow[] {
+  const byId = new Map(items.map((d) => [d.id, d]));
+  return res.results.map((r) => {
+    const d = byId.get(r.decision_id);
+    return {
+      id: r.decision_id,
+      ok: r.ok,
+      label: d ? `${d.name} (${d.symbol})` : r.decision_id.slice(0, 8),
+      detail: r.ok ? res.action : r.error,
+      href: `/decisions/${r.decision_id}`,
+    };
+  });
+}
 
 export function DecisionInboxGrouped({
   items,
   showReject = true,
+  selectionTab,
+  initialSelected,
+  onSelectionChange,
 }: {
   items: Decision[];
   showReject?: boolean;
+  selectionTab?: InboxTab;
+  initialSelected?: Set<string>;
+  onSelectionChange?: (tab: InboxTab, ids: string[]) => void;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [selected, setSelected] = useState<Set<string>>(() => initialSelected ?? new Set());
+  const [batchPanel, setBatchPanel] = useState<{
+    title: string;
+    res: BatchDecisionActionResult;
+  } | null>(null);
+
+  useEffect(() => {
+    if (initialSelected) setSelected(new Set(initialSelected));
+  }, [initialSelected]);
+
+  useEffect(() => {
+    if (!selectionTab) return;
+    const ids = Array.from(selected);
+    saveInboxSelection(selectionTab, ids);
+    onSelectionChange?.(selectionTab, ids);
+  }, [selected, selectionTab, onSelectionChange]);
 
   const groups = useMemo(() => buildRunGroups(items, (d) => d.run_id), [items]);
 
@@ -35,8 +78,10 @@ export function DecisionInboxGrouped({
     setLoading(`${action}-${label}`);
     try {
       const res = await api.batchDecisionActions({ decision_ids: decisionIds, action });
-      alert(`完成：成功 ${res.succeeded}，失败 ${res.failed}`);
-      setSelected(new Set());
+      setBatchPanel({ title: `批量${actionLabel} · ${label}`, res });
+      const failedIds = new Set(res.results.filter((r) => !r.ok).map((r) => r.decision_id));
+      setSelected(failedIds);
+      if (selectionTab) saveInboxSelection(selectionTab, Array.from(failedIds));
       router.refresh();
     } catch (e) {
       alert(String(e));
@@ -71,11 +116,23 @@ export function DecisionInboxGrouped({
 
   return (
     <div className="space-y-4">
+      {batchPanel && (
+        <BatchOperationResultPanel
+          title={batchPanel.title}
+          succeeded={batchPanel.res.succeeded}
+          failed={batchPanel.res.failed}
+          rows={rowsFromBatch(batchPanel.res, items)}
+          onDismiss={() => setBatchPanel(null)}
+        />
+      )}
+
       <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
         <span>按 run_id 分组 · 共 {groups.length} 组</span>
+        {selectionTab && selectedIds.length > 0 && (
+          <span className="text-aims-research">本 Tab 已选 {selectedIds.length}</span>
+        )}
         {selectedIds.length > 0 && (
           <>
-            <span className="text-aims-research">已选 {selectedIds.length} 条</span>
             {selectedAllDraft && showReject && (
               <>
                 <button
@@ -106,11 +163,7 @@ export function DecisionInboxGrouped({
                 执行已选
               </button>
             )}
-            <button
-              type="button"
-              className="text-gray-500"
-              onClick={() => setSelected(new Set())}
-            >
+            <button type="button" className="text-gray-500" onClick={() => setSelected(new Set())}>
               清除选择
             </button>
           </>

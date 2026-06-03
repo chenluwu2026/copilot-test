@@ -52,6 +52,21 @@ export default async function FmRunDetailPage({
         </Link>
       </div>
       <p className="font-mono text-sm text-gray-400">{detail.run_id}</p>
+      <p className="text-sm">
+        <Link
+          href={`/review?run_id=${encodeURIComponent(detail.run_id)}`}
+          className="text-aims-accent underline"
+        >
+          在复盘页筛选本批次 →
+        </Link>
+        {" · "}
+        <Link
+          href={`/decisions/inbox?tab=draft`}
+          className="text-gray-400 hover:text-aims-accent"
+        >
+          交易台收件箱
+        </Link>
+      </p>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card title="权重对比（账本提案）">
