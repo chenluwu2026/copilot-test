@@ -46,12 +46,17 @@ export function DecisionInboxTable({
   items,
   showReject = true,
   groupByRun: _groupByRun = true,
+  selectedIds,
+  onToggleSelect,
 }: {
   items: Decision[];
   showReject?: boolean;
   /** 由 DecisionInboxGrouped 内嵌时传 false */
   groupByRun?: boolean;
+  selectedIds?: Set<string>;
+  onToggleSelect?: (id: string) => void;
 }) {
+  const selectable = !!selectedIds && !!onToggleSelect;
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
 
@@ -115,6 +120,7 @@ export function DecisionInboxTable({
     <table className="w-full text-left text-sm">
       <thead className="text-gray-400">
         <tr>
+          {selectable && <th className="w-8"></th>}
           <th>标的 / 来源</th>
           <th>动作</th>
           <th>仓位</th>
@@ -126,7 +132,21 @@ export function DecisionInboxTable({
       </thead>
       <tbody>
         {sorted.map((d) => (
-          <tr key={d.id} className="border-t border-aims-border">
+          <tr
+            key={d.id}
+            className={`border-t border-aims-border ${
+              selectable && selectedIds?.has(d.id) ? "bg-aims-accent/5" : ""
+            }`}
+          >
+            {selectable && (
+              <td className="py-2">
+                <input
+                  type="checkbox"
+                  checked={selectedIds!.has(d.id)}
+                  onChange={() => onToggleSelect!(d.id)}
+                />
+              </td>
+            )}
             <td className="py-2">
               {d.name}
               {sourceBadge(d.created_by_agent)}
