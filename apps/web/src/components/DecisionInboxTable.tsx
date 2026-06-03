@@ -6,6 +6,25 @@ import { useState } from "react";
 import type { Decision } from "@/lib/api";
 import { api } from "@/lib/api";
 
+function sourceBadge(agent?: string) {
+  if (!agent) return null;
+  const label =
+    agent === "decision_pipeline"
+      ? "流水线"
+      : agent === "cio_agent"
+        ? "CIO"
+        : agent === "fm_daily"
+          ? "一日编排"
+          : agent;
+  const color =
+    agent === "decision_pipeline" || agent === "fm_daily"
+      ? "border-aims-research/40 text-aims-research"
+      : "border-gray-600 text-gray-400";
+  return (
+    <span className={`ml-1 rounded border px-1 py-0.5 text-[10px] ${color}`}>{label}</span>
+  );
+}
+
 function gradeBadge(grade?: string) {
   if (!grade) return null;
   const colors: Record<string, string> = {
@@ -93,7 +112,7 @@ export function DecisionInboxTable({
     <table className="w-full text-left text-sm">
       <thead className="text-gray-400">
         <tr>
-          <th>标的</th>
+          <th>标的 / 来源</th>
           <th>动作</th>
           <th>仓位</th>
           <th>证据</th>
@@ -106,6 +125,7 @@ export function DecisionInboxTable({
           <tr key={d.id} className="border-t border-aims-border">
             <td className="py-2">
               {d.name}
+              {sourceBadge(d.created_by_agent)}
               {gradeBadge(d.evidence_grade)}
             </td>
             <td>{d.action}</td>

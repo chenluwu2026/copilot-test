@@ -112,6 +112,14 @@ def decision_provenance(decision_id: UUID, db: Session = Depends(get_db)):
         raise HTTPException(404, str(e)) from e
 
 
+@router.get("/{decision_id}/ledger")
+def decision_ledger(decision_id: UUID, db: Session = Depends(get_db)):
+    ledger = dls.get_latest_ledger_by_decision(db, decision_id)
+    if not ledger:
+        raise HTTPException(404, "暂无决策账本")
+    return _ledger_to_dict(ledger)
+
+
 @router.get("/{decision_id}/coverage")
 def decision_coverage(decision_id: UUID, db: Session = Depends(get_db)):
     try:

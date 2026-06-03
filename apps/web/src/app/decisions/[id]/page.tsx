@@ -3,6 +3,7 @@ import { AdvancedFold } from "@/components/AdvancedFold";
 import { DecisionProvenancePanel } from "@/components/DecisionProvenancePanel";
 import { DecisionCoveragePanel } from "@/components/DecisionCoveragePanel";
 import { DecisionTimelinePanel } from "@/components/DecisionTimeline";
+import { DecisionLedgerPanel } from "@/components/DecisionLedgerPanel";
 import { Card } from "@/components/Card";
 import { api } from "@/lib/api";
 
@@ -33,6 +34,12 @@ export default async function DecisionDetailPage({
   } catch {
     coverage = null;
   }
+  let ledger: Awaited<ReturnType<typeof api.decisionLedger>> | null = null;
+  try {
+    ledger = await api.decisionLedger(params.id);
+  } catch {
+    ledger = null;
+  }
 
   return (
     <div className="space-y-4">
@@ -51,7 +58,12 @@ export default async function DecisionDetailPage({
         {d.holding_period && (
           <span className="rounded bg-aims-border px-2 py-1">周期: {d.holding_period}</span>
         )}
+        {d.created_by_agent && (
+          <span className="rounded bg-aims-border px-2 py-1">来源: {d.created_by_agent}</span>
+        )}
       </div>
+
+      <DecisionLedgerPanel ledger={ledger} />
 
       <Card title="决策理由">
         <p className="text-sm leading-relaxed">{d.decision_reason}</p>

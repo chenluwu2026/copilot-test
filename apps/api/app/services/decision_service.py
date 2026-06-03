@@ -81,6 +81,9 @@ def create_decision(
     cio_summary: dict | None = None,
     created_by_agent: str = "human",
     evidence_meta: dict | None = None,
+    run_id: str | None = None,
+    execution_plan_json: dict | None = None,
+    risk_result_json: dict | None = None,
 ) -> Decision:
     if cio_summary:
         validate_decision_payload(cio_summary)
@@ -133,6 +136,9 @@ def create_decision(
         portfolio_id=portfolio_id,
         security_id=security_id,
         decision_id=decision.id,
+        run_id=run_id,
+        risk_result_json=risk_result_json or {},
+        execution_plan_json=execution_plan_json or {},
         proposal_json={
             "action": action.value,
             "current_weight_pct": current_weight_pct,

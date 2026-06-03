@@ -16,6 +16,7 @@ from app.routers import (
     data,
     decisions,
     events,
+    fm,
     memory,
     portfolios,
     research,
@@ -107,6 +108,7 @@ app.include_router(portfolios.router, prefix=prefix)
 app.include_router(decisions.router, prefix=prefix)
 app.include_router(watchlists.router, prefix=prefix)
 app.include_router(events.router, prefix=prefix)
+app.include_router(fm.router, prefix=prefix)
 app.include_router(research.router, prefix=prefix)
 app.include_router(agents.router, prefix=prefix)
 app.include_router(memory.router, prefix=prefix)

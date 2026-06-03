@@ -77,6 +77,9 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+  fmDailyRun: (body: FmDailyRunRequest) =>
+    fetchApi<FmDailyRunResponse>("/fm/daily-run", { method: "POST", body: JSON.stringify(body) }),
+  decisionLedger: (decisionId: string) => fetchApi<DecisionLedger>(`/decisions/${decisionId}/ledger`),
   updateDecisionStatus: (id: string, status: string) =>
     fetchApi<Decision>(`/decisions/${id}/status`, {
       method: "PATCH",
@@ -350,6 +353,52 @@ export type Decision = {
   assumptions: { text: string; measurable: boolean }[];
   references: { ref_type: string; excerpt?: string }[];
   created_at?: string;
+  created_by_agent?: string;
+};
+
+export type DecisionLedger = {
+  id: string;
+  portfolio_id: string;
+  security_id: string;
+  decision_id?: string | null;
+  run_id?: string | null;
+  status: string;
+  proposal_json?: Record<string, unknown>;
+  risk_result_json?: Record<string, unknown>;
+  execution_plan_json?: Record<string, unknown>;
+  execution_result_json?: Record<string, unknown>;
+  created_at?: string;
+};
+
+export type FmDailyRunRequest = {
+  portfolio_id: string;
+  max_turnover_pct?: number;
+  auto_approve?: boolean;
+  auto_execute_simulated?: boolean;
+  simulated_fill_ratio?: number;
+  auto_retry_resize?: boolean;
+  max_retry_steps?: number;
+  retry_decay_factor?: number;
+  auto_apply_fallback_partial?: boolean;
+  candidate_limit?: number;
+};
+
+export type FmDailyRunResponse = {
+  run_id: string;
+  portfolio_id: string;
+  summary_md: string;
+  data_readiness: {
+    coverage_pct: number;
+    stale_or_missing_symbols: number;
+    ready: boolean;
+  };
+  candidate_count: number;
+  pipeline: DecisionPipelineResponse | null;
+  counts: {
+    created_decisions: number;
+    rejected: number;
+    fallback_applied: number;
+  };
 };
 
 export type DecisionPipelineRequest = {

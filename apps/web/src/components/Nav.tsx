@@ -4,18 +4,17 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const links = [
-  { href: "/", label: "总览" },
-  { href: "/portfolio", label: "组合" },
+  { href: "/", label: "指挥中心" },
+  { href: "/decisions/inbox", label: "交易台" },
+  { href: "/research", label: "研究池" },
   { href: "/watchlist", label: "股票池" },
-  { href: "/decisions", label: "决策日志" },
-  { href: "/decisions/inbox", label: "收件箱" },
-  { href: "/research", label: "研究" },
-  { href: "/events", label: "信息流" },
-  { href: "/data", label: "数据" },
   { href: "/review", label: "复盘" },
+  { href: "/portfolio", label: "组合" },
+  { href: "/decisions", label: "决策日志" },
+  { href: "/events", label: "事件" },
+  { href: "/data", label: "数据" },
   { href: "/agents", label: "Agent" },
-  { href: "/settings", label: "画像" },
-  { href: "/rules", label: "规则" },
+  { href: "/settings", label: "设置" },
 ];
 
 export function Nav() {
