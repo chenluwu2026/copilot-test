@@ -79,6 +79,10 @@ export const api = {
     }),
   fmDailyRun: (body: FmDailyRunRequest) =>
     fetchApi<FmDailyRunResponse>("/fm/daily-run", { method: "POST", body: JSON.stringify(body) }),
+  fmRuns: (portfolioId: string, limit = 30) =>
+    fetchApi<FmRunSummary[]>(`/fm/runs?portfolio_id=${portfolioId}&limit=${limit}`),
+  fmRun: (portfolioId: string, runId: string) =>
+    fetchApi<FmRunDetail>(`/fm/runs/${encodeURIComponent(runId)}?portfolio_id=${portfolioId}`),
   decisionLedger: (decisionId: string) => fetchApi<DecisionLedger>(`/decisions/${decisionId}/ledger`),
   updateDecisionStatus: (id: string, status: string) =>
     fetchApi<Decision>(`/decisions/${id}/status`, {
@@ -367,7 +371,28 @@ export type DecisionLedger = {
   risk_result_json?: Record<string, unknown>;
   execution_plan_json?: Record<string, unknown>;
   execution_result_json?: Record<string, unknown>;
+  postmortem_json?: Record<string, unknown>;
   created_at?: string;
+};
+
+export type FmRunSummary = {
+  run_id: string;
+  portfolio_id: string;
+  ledger_count: number;
+  decision_count: number;
+  risk_rejected: number;
+  filled: number;
+  reviewed: number;
+  rejection_rate_pct: number;
+  created_at: string | null;
+};
+
+export type FmRunDetail = {
+  run_id: string;
+  portfolio_id: string;
+  ledger_count: number;
+  gate_failure_stats: Record<string, number>;
+  ledgers: DecisionLedger[];
 };
 
 export type FmDailyRunRequest = {
@@ -709,6 +734,12 @@ export type AgentConfig = {
   alembic_upgrade_on_start?: boolean;
 };
 
+export type DriftAlert = {
+  level: "info" | "warning";
+  code: string;
+  message: string;
+};
+
 export type QualityMetrics = {
   portfolio_id: string;
   draft_count: number;
@@ -718,6 +749,10 @@ export type QualityMetrics = {
   reference_coverage_pct: number;
   rebalance_runs: number;
   llm_cio_run_pct: number;
+  pipeline_rejection_rate_pct?: number;
+  avg_weight_drift_pct?: number;
+  gate_failure_stats?: Record<string, number>;
+  drift_alerts?: DriftAlert[];
   agent_mode_hint: string;
 };
 

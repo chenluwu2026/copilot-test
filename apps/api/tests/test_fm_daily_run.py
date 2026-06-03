@@ -8,6 +8,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.database import Base
 from app.models import Market, Portfolio, Security, User, Watchlist, WatchlistItem, WatchlistTier
+from app.services import decision_ledger_service as dls
 from app.services.fm_daily_run_service import run_fm_daily
 
 
@@ -69,6 +70,15 @@ class FmDailyRunTests(unittest.TestCase):
         self.assertGreaterEqual(out["candidate_count"], 1)
         self.assertIsNotNone(out["pipeline"])
         self.assertGreaterEqual(out["counts"]["created_decisions"], 1)
+
+    def test_list_run_summaries_after_daily_run(self):
+        out = run_fm_daily(self.db, portfolio_id=self.portfolio.id, auto_approve=False)
+        runs = dls.list_run_summaries(self.db, self.portfolio.id)
+        self.assertTrue(any(r["run_id"] == out["run_id"] for r in runs))
+        detail = dls.list_ledgers_by_run(
+            self.db, portfolio_id=self.portfolio.id, run_id=out["run_id"]
+        )
+        self.assertGreaterEqual(len(detail), 1)
 
 
 if __name__ == "__main__":

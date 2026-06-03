@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { PortfolioWeightCompareChart } from "@/components/PortfolioWeightCompareChart";
 import { api, type FmDailyRunResponse } from "@/lib/api";
 
 export function FundManagerConsole({
@@ -72,6 +73,9 @@ export function FundManagerConsole({
         <Link href="/decisions/inbox" className="text-aims-research underline">
           前往收件箱 →
         </Link>
+        <Link href="/fm/runs" className="text-aims-accent underline">
+          批次账本 →
+        </Link>
       </div>
       {error && <p className="mt-2 text-sm text-aims-negative">{error}</p>}
       {result && (
@@ -85,6 +89,19 @@ export function FundManagerConsole({
             数据覆盖 {result.data_readiness.coverage_pct}% · 陈旧/缺失{" "}
             {result.data_readiness.stale_or_missing_symbols}
           </p>
+          {pipeline?.targets?.length ? (
+            <PortfolioWeightCompareChart targets={pipeline.targets} maxBars={10} />
+          ) : null}
+          {result.run_id && (
+            <p className="text-xs">
+              <Link
+                href={`/fm/runs/${encodeURIComponent(result.run_id)}`}
+                className="text-aims-accent underline"
+              >
+                查看本批次账本详情 →
+              </Link>
+            </p>
+          )}
           {pipeline?.results?.length ? (
             <ul className="max-h-48 space-y-1 overflow-y-auto text-xs text-gray-400">
               {pipeline.results.map((r) => (

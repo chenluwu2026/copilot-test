@@ -44,6 +44,42 @@ def fm_daily_run(body: FmDailyRunIn, db: Session = Depends(get_db)):
         raise HTTPException(400, str(e)) from e
 
 
+@router.get("/runs")
+def list_fm_runs(portfolio_id: UUID, limit: int = 30, db: Session = Depends(get_db)):
+    return dls.list_run_summaries(db, portfolio_id, limit=limit)
+
+
+@router.get("/runs/{run_id}")
+def get_fm_run(portfolio_id: UUID, run_id: str, db: Session = Depends(get_db)):
+    items = dls.list_ledgers_by_run(db, portfolio_id=portfolio_id, run_id=run_id)
+    if not items:
+        raise HTTPException(404, "未找到该 run_id 的账本记录")
+    gate_stats = dls.gate_failure_stats(db, portfolio_id, limit=200)
+    return {
+        "run_id": run_id,
+        "portfolio_id": str(portfolio_id),
+        "ledger_count": len(items),
+        "gate_failure_stats": gate_stats,
+        "ledgers": [
+            {
+                "id": str(x.id),
+                "portfolio_id": str(x.portfolio_id),
+                "security_id": str(x.security_id),
+                "decision_id": str(x.decision_id) if x.decision_id else None,
+                "run_id": x.run_id,
+                "status": x.status.value,
+                "proposal_json": x.proposal_json,
+                "risk_result_json": x.risk_result_json,
+                "execution_plan_json": x.execution_plan_json,
+                "execution_result_json": x.execution_result_json,
+                "postmortem_json": x.postmortem_json,
+                "created_at": x.created_at.isoformat() if x.created_at else None,
+            }
+            for x in items
+        ],
+    }
+
+
 @router.get("/ledgers")
 def list_fm_ledgers(portfolio_id: UUID, run_id: str | None = None, limit: int = 50, db: Session = Depends(get_db)):
     items = dls.list_ledgers(db, portfolio_id=portfolio_id, limit=limit)

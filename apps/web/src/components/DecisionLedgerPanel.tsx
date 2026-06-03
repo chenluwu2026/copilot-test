@@ -7,6 +7,7 @@ export function DecisionLedgerPanel({ ledger }: { ledger: DecisionLedger | null 
   const plan = ledger.execution_plan_json || {};
   const risk = ledger.risk_result_json || {};
   const exec = ledger.execution_result_json || {};
+  const postmortem = ledger.postmortem_json || {};
 
   return (
     <Card title="决策账本（Ledger）">
@@ -40,6 +41,16 @@ export function DecisionLedgerPanel({ ledger }: { ledger: DecisionLedger | null 
             执行结果（{String(exec.mode)}）：成交价 {String(exec.executed_price ?? "—")} · 成交比例{" "}
             {String(exec.fill_ratio ?? "—")}
           </p>
+        )}
+        {postmortem.return_since_decision_pct != null && (
+          <div className="mt-2 rounded border border-aims-border/50 p-2 text-xs">
+            <p className="font-medium text-aims-accent">复盘已回写</p>
+            <p>
+              决策后收益 {String(postmortem.return_since_decision_pct)}% ·{" "}
+              {String(postmortem.outcome_summary ?? "").slice(0, 120)}
+              {(postmortem.outcome_summary as string)?.length > 120 ? "…" : ""}
+            </p>
+          </div>
         )}
       </div>
     </Card>

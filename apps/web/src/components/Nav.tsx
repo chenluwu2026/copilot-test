@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 const links = [
   { href: "/", label: "指挥中心" },
+  { href: "/fm/runs", label: "批次账本" },
   { href: "/decisions/inbox", label: "交易台" },
   { href: "/research", label: "研究池" },
   { href: "/watchlist", label: "股票池" },

@@ -16,6 +16,7 @@ from app.models import (
 )
 from app.services.market_data_service import get_close_on_or_before, get_latest_close
 from app.services.memory_service import create_memory
+from app.services import decision_ledger_service as dls
 from app.services.portfolio_service import get_portfolio_summary
 
 
@@ -255,6 +256,21 @@ def review_decision(db: Session, decision_id: UUID) -> tuple[DecisionOutcome, st
             active=False,
         )
         memory_id = str(mem.id)
+
+    dls.write_postmortem_for_decision(
+        db,
+        decision_id=decision_id,
+        postmortem_json={
+            "reviewed_at": datetime.now(timezone.utc).isoformat(),
+            "return_since_decision_pct": float(ret),
+            "outcome_summary": summary,
+            "what_went_right": right,
+            "what_went_wrong": wrong,
+            "assumption_results": assumption_results,
+            "price_metadata": price_meta,
+            "memory_id": memory_id,
+        },
+    )
 
     db.commit()
     db.refresh(outcome)
