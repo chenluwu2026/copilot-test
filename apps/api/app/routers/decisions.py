@@ -12,6 +12,7 @@ from app.schemas_api import (
     DecisionLedgerCreate,
     DecisionLedgerTransition,
     DecisionPipelineIn,
+    BatchDecisionActionIn,
     DecisionStatusUpdate,
     ExecutionSimulateIn,
     FeedbackCreate,
@@ -293,6 +294,14 @@ def create_decision(body: DecisionCreate, db: Session = Depends(get_db)):
         )
         return _decision_to_dict(d, db=db, enrich_ledger=True)
     except Exception as e:
+        raise HTTPException(400, str(e)) from e
+
+
+@router.post("/batch-actions")
+def batch_decision_actions(body: BatchDecisionActionIn, db: Session = Depends(get_db)):
+    try:
+        return ds.batch_decision_actions(db, decision_ids=body.decision_ids, action=body.action)
+    except ValueError as e:
         raise HTTPException(400, str(e)) from e
 
 

@@ -168,6 +168,16 @@ export const api = {
     ),
   runReview: (decisionId: string) =>
     fetchApi<ReviewRunResult>(`/review/decisions/${decisionId}/run`, { method: "POST" }),
+  runReviewBatch: (body: BatchReviewRequest) =>
+    fetchApi<BatchReviewResult>("/review/batch-run", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  batchDecisionActions: (body: BatchDecisionActionRequest) =>
+    fetchApi<BatchDecisionActionResult>("/decisions/batch-actions", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
   monthlyRetrospective: (portfolioId: string, year?: number, month?: number) => {
     const params = new URLSearchParams();
     if (year) params.set("year", String(year));
@@ -877,6 +887,44 @@ export type ReviewRunResult = {
   ledger_status?: string | null;
   ledger_has_postmortem?: boolean;
   run_id?: string | null;
+};
+
+export type BatchReviewRequest = {
+  portfolio_id: string;
+  decision_ids?: string[];
+  urgency?: "due" | "overdue" | "all";
+  limit?: number;
+};
+
+export type BatchReviewResult = {
+  portfolio_id: string;
+  urgency: string;
+  requested: number;
+  succeeded: number;
+  failed: number;
+  memory_ids: string[];
+  results: {
+    decision_id: string;
+    ok: boolean;
+    symbol?: string;
+    return_since_decision_pct?: number;
+    memory_id?: string | null;
+    ledger_has_postmortem?: boolean;
+    error?: string;
+  }[];
+};
+
+export type BatchDecisionActionRequest = {
+  decision_ids: string[];
+  action: "approve" | "cancel" | "execute";
+};
+
+export type BatchDecisionActionResult = {
+  action: string;
+  requested: number;
+  succeeded: number;
+  failed: number;
+  results: { decision_id: string; ok: boolean; error?: string }[];
 };
 
 export type MonthlyRetrospective = {

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Card } from "@/components/Card";
-import { DecisionInboxTable } from "@/components/DecisionInboxTable";
+import { DecisionInboxGrouped } from "@/components/DecisionInboxGrouped";
 import { api } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
@@ -49,7 +49,7 @@ export default async function DecisionInboxPage({
       </div>
 
       <Card title={tab === "approved" ? "已批准 · 待成交" : "草案 · 待批准"}>
-        <DecisionInboxTable
+        <DecisionInboxGrouped
           items={tab === "approved" ? approved : drafts}
           showReject={tab !== "approved"}
         />

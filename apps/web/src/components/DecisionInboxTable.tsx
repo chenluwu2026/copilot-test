@@ -45,9 +45,12 @@ function gradeBadge(grade?: string) {
 export function DecisionInboxTable({
   items,
   showReject = true,
+  groupByRun: _groupByRun = true,
 }: {
   items: Decision[];
   showReject?: boolean;
+  /** 由 DecisionInboxGrouped 内嵌时传 false */
+  groupByRun?: boolean;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);

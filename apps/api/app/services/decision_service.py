@@ -211,6 +211,48 @@ def update_decision_status(db: Session, decision_id: UUID, status: DecisionStatu
     return get_decision(db, decision_id)
 
 
+def batch_decision_actions(
+    db: Session,
+    *,
+    decision_ids: list[UUID],
+    action: str,
+) -> dict:
+    """批量批准 / 拒绝 / 执行（最多 50 条）。"""
+    from app.services import portfolio_service as ps
+
+    results: list[dict] = []
+    succeeded = 0
+    failed = 0
+    action = action.strip().lower()
+    status_map = {
+        "approve": DecisionStatus.approved,
+        "cancel": DecisionStatus.cancelled,
+        "reject": DecisionStatus.cancelled,
+    }
+    for did in decision_ids[:50]:
+        try:
+            if action in status_map:
+                update_decision_status(db, did, status_map[action])
+                results.append({"decision_id": str(did), "ok": True, "action": action})
+                succeeded += 1
+            elif action == "execute":
+                ps.execute_decision(db, did, None)
+                results.append({"decision_id": str(did), "ok": True, "action": "execute"})
+                succeeded += 1
+            else:
+                raise ValueError(f"不支持的操作: {action}")
+        except Exception as e:
+            failed += 1
+            results.append({"decision_id": str(did), "ok": False, "error": str(e)})
+    return {
+        "action": action,
+        "requested": len(decision_ids),
+        "succeeded": succeeded,
+        "failed": failed,
+        "results": results,
+    }
+
+
 def add_feedback(
     db: Session,
     user_id: UUID,

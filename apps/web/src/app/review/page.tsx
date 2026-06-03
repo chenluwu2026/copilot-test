@@ -57,7 +57,11 @@ export default async function ReviewPage() {
       <ReviewSummaryBanner summary={reviewSummary} />
 
       <Card title="待复盘决策 (Review Agent)">
-        <ReviewBoard items={open} />
+        {pid ? (
+          <ReviewBoard items={open} portfolioId={pid} />
+        ) : (
+          <p className="text-sm text-gray-500">暂无组合</p>
+        )}
       </Card>
 
       <Card title="已复盘 · 待激活记忆">
