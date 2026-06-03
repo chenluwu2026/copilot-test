@@ -32,8 +32,19 @@ from app.services.user_context import get_default_user
 router = APIRouter(prefix="/decisions", tags=["decisions"])
 
 
-def _decision_to_dict(d) -> dict:
+def _ledger_fields(db: Session, decision_id: UUID) -> dict:
+    ledger = dls.get_latest_ledger_by_decision(db, decision_id)
+    if not ledger:
+        return {"ledger_status": None, "run_id": None, "has_postmortem": False}
     return {
+        "ledger_status": ledger.status.value,
+        "run_id": ledger.run_id,
+        "has_postmortem": bool(ledger.postmortem_json or {}),
+    }
+
+
+def _decision_to_dict(d, *, db: Session | None = None, enrich_ledger: bool = False) -> dict:
+    out = {
         "id": str(d.id),
         "portfolio_id": str(d.portfolio_id),
         "security_id": str(d.security_id),
@@ -83,17 +94,21 @@ def _decision_to_dict(d) -> dict:
             for f in (d.feedbacks or [])
         ],
     }
+    if enrich_ledger and db is not None:
+        out.update(_ledger_fields(db, d.id))
+    return out
 
 
 @router.get("")
 def list_decisions(
     portfolio_id: UUID | None = None,
     status: str | None = Query(None),
+    enrich_ledger: bool = Query(False),
     db: Session = Depends(get_db),
 ):
     st = DecisionStatus(status) if status else None
     items = ds.list_decisions(db, portfolio_id, st)
-    return [_decision_to_dict(d) for d in items]
+    return [_decision_to_dict(d, db=db, enrich_ledger=enrich_ledger) for d in items]
 
 
 @router.get("/{decision_id}/timeline")
@@ -254,7 +269,7 @@ def get_decision(decision_id: UUID, db: Session = Depends(get_db)):
     d = ds.get_decision(db, decision_id)
     if not d:
         raise HTTPException(404, "决策不存在")
-    return _decision_to_dict(d)
+    return _decision_to_dict(d, db=db, enrich_ledger=True)
 
 
 @router.post("")
@@ -276,7 +291,7 @@ def create_decision(body: DecisionCreate, db: Session = Depends(get_db)):
             body.holding_period,
             body.cio_summary,
         )
-        return _decision_to_dict(d)
+        return _decision_to_dict(d, db=db, enrich_ledger=True)
     except Exception as e:
         raise HTTPException(400, str(e)) from e
 
@@ -285,7 +300,7 @@ def create_decision(body: DecisionCreate, db: Session = Depends(get_db)):
 def update_status(decision_id: UUID, body: DecisionStatusUpdate, db: Session = Depends(get_db)):
     try:
         d = ds.update_decision_status(db, decision_id, DecisionStatus(body.status))
-        return _decision_to_dict(d)
+        return _decision_to_dict(d, db=db, enrich_ledger=True)
     except ValueError as e:
         raise HTTPException(400, str(e)) from e
 

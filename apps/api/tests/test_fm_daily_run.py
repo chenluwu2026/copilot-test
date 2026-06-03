@@ -10,6 +10,7 @@ from app.database import Base
 from app.models import Market, Portfolio, Security, User, Watchlist, WatchlistItem, WatchlistTier
 from app.services import decision_ledger_service as dls
 from app.services.fm_daily_run_service import run_fm_daily
+from app.services.fm_targets_service import get_latest_fm_targets
 
 
 def _db_url() -> str:
@@ -79,6 +80,13 @@ class FmDailyRunTests(unittest.TestCase):
             self.db, portfolio_id=self.portfolio.id, run_id=out["run_id"]
         )
         self.assertGreaterEqual(len(detail), 1)
+
+    def test_latest_fm_targets_after_daily_run(self):
+        run_fm_daily(self.db, portfolio_id=self.portfolio.id, auto_approve=False)
+        latest = get_latest_fm_targets(self.db, self.portfolio.id)
+        self.assertIsNotNone(latest["run_id"])
+        self.assertTrue(latest["run_id"].startswith("fm-"))
+        self.assertGreaterEqual(len(latest["targets"]), 1)
 
 
 if __name__ == "__main__":

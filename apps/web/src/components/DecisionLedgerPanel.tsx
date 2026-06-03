@@ -10,6 +10,7 @@ export function DecisionLedgerPanel({ ledger }: { ledger: DecisionLedger | null 
   const postmortem = ledger.postmortem_json || {};
 
   return (
+    <div id="decision-ledger" className="scroll-mt-20">
     <Card title="决策账本（Ledger）">
       <div className="space-y-2 text-sm text-gray-300">
         <p>
@@ -17,7 +18,13 @@ export function DecisionLedgerPanel({ ledger }: { ledger: DecisionLedger | null 
           {ledger.run_id && (
             <>
               {" "}
-              · run <code className="text-xs text-gray-500">{ledger.run_id}</code>
+              ·{" "}
+              <a
+                href={`/fm/runs/${encodeURIComponent(ledger.run_id)}`}
+                className="text-aims-accent underline"
+              >
+                批次 {ledger.run_id}
+              </a>
             </>
           )}
         </p>
@@ -54,5 +61,6 @@ export function DecisionLedgerPanel({ ledger }: { ledger: DecisionLedger | null 
         )}
       </div>
     </Card>
+    </div>
   );
 }

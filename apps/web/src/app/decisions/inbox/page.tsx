@@ -17,8 +17,8 @@ export default async function DecisionInboxPage({
   let drafts: Awaited<ReturnType<typeof api.decisions>> = [];
   let approved: Awaited<ReturnType<typeof api.decisions>> = [];
   if (pid) {
-    drafts = await api.decisions(pid, "draft");
-    approved = await api.decisions(pid, "approved");
+    drafts = await api.decisions(pid, "draft", true);
+    approved = await api.decisions(pid, "approved", true);
   }
 
   return (

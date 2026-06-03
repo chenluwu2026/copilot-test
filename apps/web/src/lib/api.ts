@@ -62,13 +62,16 @@ export const api = {
   securities: (q?: string) =>
     fetchApi<Security[]>(`/securities${q ? `?q=${encodeURIComponent(q)}` : ""}`),
 
-  decisions: (portfolioId?: string, status?: string) => {
+  decisions: (portfolioId?: string, status?: string, enrichLedger = false) => {
     const params = new URLSearchParams();
     if (portfolioId) params.set("portfolio_id", portfolioId);
     if (status) params.set("status", status);
+    if (enrichLedger) params.set("enrich_ledger", "true");
     const q = params.toString();
     return fetchApi<Decision[]>(`/decisions${q ? `?${q}` : ""}`);
   },
+  fmLatestTargets: (portfolioId: string) =>
+    fetchApi<FmLatestTargets>(`/fm/latest-targets?portfolio_id=${portfolioId}`),
   decision: (id: string) => fetchApi<Decision>(`/decisions/${id}`),
   createDecision: (body: object) =>
     fetchApi<Decision>("/decisions", { method: "POST", body: JSON.stringify(body) }),
@@ -358,6 +361,9 @@ export type Decision = {
   references: { ref_type: string; excerpt?: string }[];
   created_at?: string;
   created_by_agent?: string;
+  ledger_status?: string | null;
+  run_id?: string | null;
+  has_postmortem?: boolean;
 };
 
 export type DecisionLedger = {
@@ -373,6 +379,23 @@ export type DecisionLedger = {
   execution_result_json?: Record<string, unknown>;
   postmortem_json?: Record<string, unknown>;
   created_at?: string;
+};
+
+export type FmLatestTargets = {
+  portfolio_id: string;
+  run_id: string | null;
+  created_at: string | null;
+  rejection_rate_pct: number;
+  ledger_count?: number;
+  decision_count?: number;
+  targets: {
+    security_id: string;
+    symbol?: string | null;
+    name?: string | null;
+    current_weight_pct: number;
+    target_weight_pct: number;
+  }[];
+  cash_target_pct: number | null;
 };
 
 export type FmRunSummary = {
@@ -808,6 +831,9 @@ export type OpenDecision = {
   material_move?: boolean;
   urgency?: "overdue" | "due" | "ok" | "unknown";
   pending_memory_id?: string | null;
+  ledger_status?: string | null;
+  run_id?: string | null;
+  has_postmortem?: boolean;
 };
 
 export type ResearchQuality = {
@@ -848,6 +874,9 @@ export type ReviewRunResult = {
   outcome_summary?: string;
   price_metadata?: Record<string, unknown>;
   review_quality?: ReviewQuality;
+  ledger_status?: string | null;
+  ledger_has_postmortem?: boolean;
+  run_id?: string | null;
 };
 
 export type MonthlyRetrospective = {

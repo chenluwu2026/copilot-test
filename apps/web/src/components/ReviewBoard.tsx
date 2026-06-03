@@ -36,13 +36,20 @@ export function ReviewBoard({ items }: { items: OpenDecision[] }) {
         ].join("\n");
         if (failed.length) alert(msg);
       }
+      const ledgerNote = res.ledger_has_postmortem
+        ? "\n\n已回写决策账本（postmortem）。"
+        : res.ledger_status
+          ? `\n\n账本状态：${res.ledger_status}`
+          : "";
       if (res.memory_id) {
         const ok = confirm(
-          "复盘完成，已生成待确认记忆。是否立即激活？激活后将在下次 CIO 调仓时注入。"
+          `复盘完成，已生成待确认记忆。${ledgerNote}\n\n是否立即激活？激活后将在下次 CIO 调仓时注入。`
         );
         if (ok) {
           await api.activateMemory(res.memory_id);
         }
+      } else if (ledgerNote) {
+        alert(`复盘完成。${ledgerNote.trim()}`);
       }
       router.refresh();
     } catch (e) {
@@ -89,6 +96,7 @@ export function ReviewBoard({ items }: { items: OpenDecision[] }) {
           <th>执行天数</th>
           <th>状态</th>
           <th>决策后收益</th>
+          <th>账本</th>
           <th></th>
         </tr>
       </thead>
@@ -116,6 +124,34 @@ export function ReviewBoard({ items }: { items: OpenDecision[] }) {
               {d.return_since_decision_pct != null
                 ? `${d.return_since_decision_pct}%`
                 : "—"}
+            </td>
+            <td className="text-xs text-gray-400">
+              {d.ledger_status ? (
+                <span>
+                  {d.ledger_status}
+                  {d.has_postmortem ? " · 已复盘" : ""}
+                </span>
+              ) : (
+                "—"
+              )}
+              <br />
+              <Link
+                href={`/decisions/${d.decision_id}#decision-ledger`}
+                className="text-aims-accent"
+              >
+                账本 →
+              </Link>
+              {d.run_id && (
+                <>
+                  {" "}
+                  <Link
+                    href={`/fm/runs/${encodeURIComponent(d.run_id)}`}
+                    className="text-gray-500 hover:text-aims-accent"
+                  >
+                    批次
+                  </Link>
+                </>
+              )}
             </td>
             <td className="space-x-2 whitespace-nowrap">
               <button

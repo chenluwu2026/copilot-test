@@ -55,6 +55,9 @@ def run_review(decision_id: UUID, db: Session = Depends(get_db)):
     try:
         o, memory_id = review_decision(db, decision_id)
         quality = build_review_quality(db, decision_id, memory_id=memory_id)
+        from app.services.decision_ledger_service import get_latest_ledger_by_decision
+
+        ledger = get_latest_ledger_by_decision(db, decision_id)
         return {
             "decision_id": str(o.decision_id),
             "return_since_decision_pct": float(o.return_since_decision_pct or 0),
@@ -65,6 +68,9 @@ def run_review(decision_id: UUID, db: Session = Depends(get_db)):
             "price_metadata": o.price_metadata or {},
             "memory_id": memory_id,
             "review_quality": quality,
+            "ledger_status": ledger.status.value if ledger else None,
+            "ledger_has_postmortem": bool(ledger and (ledger.postmortem_json or {})),
+            "run_id": ledger.run_id if ledger else None,
         }
     except ValueError as e:
         raise HTTPException(404, str(e)) from e

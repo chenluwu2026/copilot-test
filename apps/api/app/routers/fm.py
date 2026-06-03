@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.services import decision_ledger_service as dls
 from app.services.fm_daily_run_service import run_fm_daily
+from app.services.fm_targets_service import get_latest_fm_targets
 
 router = APIRouter(prefix="/fm", tags=["fund-manager"])
 
@@ -42,6 +43,11 @@ def fm_daily_run(body: FmDailyRunIn, db: Session = Depends(get_db)):
         )
     except ValueError as e:
         raise HTTPException(400, str(e)) from e
+
+
+@router.get("/latest-targets")
+def fm_latest_targets(portfolio_id: UUID, db: Session = Depends(get_db)):
+    return get_latest_fm_targets(db, portfolio_id)
 
 
 @router.get("/runs")

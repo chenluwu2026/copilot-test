@@ -3,6 +3,7 @@ import { AdvancedFold } from "@/components/AdvancedFold";
 import { DecisionProvenancePanel } from "@/components/DecisionProvenancePanel";
 import { DecisionCoveragePanel } from "@/components/DecisionCoveragePanel";
 import { DecisionTimelinePanel } from "@/components/DecisionTimeline";
+import Link from "next/link";
 import { DecisionLedgerPanel } from "@/components/DecisionLedgerPanel";
 import { Card } from "@/components/Card";
 import { api } from "@/lib/api";
@@ -60,6 +61,17 @@ export default async function DecisionDetailPage({
         )}
         {d.created_by_agent && (
           <span className="rounded bg-aims-border px-2 py-1">来源: {d.created_by_agent}</span>
+        )}
+        {d.run_id && (
+          <Link
+            href={`/fm/runs/${encodeURIComponent(d.run_id)}`}
+            className="rounded bg-aims-border px-2 py-1 text-aims-accent hover:underline"
+          >
+            批次 {d.run_id}
+          </Link>
+        )}
+        {d.ledger_status && (
+          <span className="rounded bg-aims-border px-2 py-1">账本: {d.ledger_status}</span>
         )}
       </div>
 

@@ -117,6 +117,7 @@ export function DecisionInboxTable({
           <th>仓位</th>
           <th>证据</th>
           <th>状态</th>
+          <th>账本</th>
           <th></th>
         </tr>
       </thead>
@@ -136,8 +137,24 @@ export function DecisionInboxTable({
               {d.evidence_score != null ? `${d.evidence_score} 分` : "—"}
             </td>
             <td>{d.status}</td>
+            <td className="text-xs text-gray-400">
+              {d.ledger_status ?? "—"}
+              {d.run_id && (
+                <div>
+                  <Link
+                    href={`/fm/runs/${encodeURIComponent(d.run_id)}`}
+                    className="text-aims-accent"
+                  >
+                    {d.run_id.slice(0, 18)}…
+                  </Link>
+                </div>
+              )}
+            </td>
             <td className="space-x-2 whitespace-nowrap">
-              <Link href={`/decisions/${d.id}`} className="text-aims-accent">
+              <Link href={`/decisions/${d.id}#decision-ledger`} className="text-aims-accent">
+                账本
+              </Link>
+              <Link href={`/decisions/${d.id}`} className="text-gray-400">
                 详情
               </Link>
               {d.status === "draft" && (
